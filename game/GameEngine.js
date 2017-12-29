@@ -30,13 +30,19 @@ const game = {
   tricks: [],
   players: [...Array(5).keys()].map(() => ({score: 0, tricks: []})),
 
+  get trickCards() {
+    return flatten(flatten(this.players.tricks))
+  },
   deal() {
     const cards = shuffle([...Array(40).keys()]).map(cardNum => this.getCard(cardNum));
     this.players.forEach(
       (player, i) => {
-        player.cards = sortBy(
+        player.hand = sortBy(
           cards.slice(i * 8, i * 8 + 8),
           ['suit', 'rank']
+        );
+        player.cards = () => player.hand.filter(
+          card => this.trickCards.indexOf(card) === -1
         );
         player.tricks = [];
       }
@@ -75,50 +81,92 @@ const game = {
     return `${this.rankOrder[card.rank]}${this.suitOrder[card.suit]}`;
   },
 
-  resolveBid() {
-    let playerIndex = this.getFirstPlayerIndex();
-    let bidRank;
-    let points = 61;
-    let passes = 0;
-    let final = false;
-    while (!final) {
-      console.log(`player ${playerIndex + 1}`)
-      console.log(this.displayCards(this.players[playerIndex].cards))
+  initializeBid() {
+    this.bid = {
+      // keeps track of bid responses
+      // each item can be: rank, P for pass or Y for point bid]
+      bidActions: [],
+      // records monkey suit
+      suit: null,
 
-      if (!this.rankOrder[bidRank]) {
-        console.log('make the first bid');
-      } else if (bidRank !== 0) {
-        console.log(`you must bid lower than ${this.rankOrder[bidRank]}`);
-      } else {
-        console.log(`2 and ${points + 2} points? type Y`)
+      get rank() {
+        const onlyRanks = this.bid.bidActions.filter(ba => !isNaN(ba));
+        return onlyRanks[onlyRanks.length - 1];
+      },
+      get points() {
+        const onlyYs = this.bidActions.filter(ba => ba === 'Y');
+        return onlyYs.length * 2 + 61;
+      },
+    }
+  },
+  // index position of bidder in this.players
+  get bidderIndex() {
+    for (let i = this.bid.bidActions.length - 1; i >= 0; i--) {
+      if (this.rankOrder[this.bid.bidActions[i]]) {
+        break;
       }
-      let resBid = prompt('your bid, please? ');
-      console.log(resBid);
-      if (this.rankOrder[bidRank] && resBid === 'P') {
-        playerIndex = (playerIndex + 1) % 5;
-        passes++;
-        if (passes === 4) {
-          final = true;
-        }
-      } else if (bidRank === 0 && resBid === 'Y') {
-        points = points + 2;
-        passes = 0;
-        playerIndex = (playerIndex + 1) % 5;
-        if (points === 119) {
-          final = true;
-        }
-      } else {
-        let rank = this.rankOrder.indexOf(resBid);
-        if (rank === -1) {
-          console.log('bad input');
-        } else if (rank >= bidRank) {
-          console.log('must be lower');
-        } else {
-          bidRank = rank;
-          passes = 0;
-          playerIndex = (playerIndex + 1) % 5;
-        }
+    }
+    return (this.roundFirstPlayerIndex + i + 1) % 5
+  },
+  // index position of partner in this.players
+  get partnerIndex() {
+    const partnerCardNum = this.bid.suit * 10 + this.bid.rank;
+    return this.players.findIndex(
+      player => player.cards.map(card => card.cardNum).indexOf(partnerCard) !== -1
+    );
+  },
+
+  pushBidAction(bidAction) {
+    this.bid.bidActions.push(budAction);
+  },
+
+
+  roundFirstPlayerIndex() {
+    return this.rounds.length % 5;
+  },
+  requestBidAction() {
+    const playerIndex = this.getPlayerIndex();
+    const bidRank = getBidRank();
+
+    if (!this.rankOrder[bidRank]) {
+      console.log('make the first bid');
+    } else if (bidRank !== 0) {
+      console.log(`you must bid lower than ${this.rankOrder[bidRank]}`);
+    } else {
+      console.log(`do you bid 2 and ${this.bid.points + 2} points? type Y`)
+    }
+
+    const ret = prompt('your bid, please? ');
+    console.log(ret);
+    return ret;
+  },
+
+  get bidIsFinal() {
+    // bid is final if the points have been incremented to 119
+    // or the last 4 bid actions are passes
+    return this.bidPoints === 119 || this.bidActions.slice(
+      this.bidActions.length - 4,
+      this.bidActions.length
+    ).filter(ba => ba === 'P').length === 4;
+  },
+
+  validateBidAction(bidAction) {
+    const currentBidRank = this.getCurrentBidRank();
+    const bidActionRank = this.rankOrder.indexOf(bidAction);
+    return (
+      (this.rankOrder[currentBidRank] && bidAction === 'P') ||
+      (currentBidRank === 0 && bidAction === 'Y') ||
+      (bidActionRank !== -1 && bidActionRank < currentBidRank)
+    );
+  },
+
+  resolveBid() {
+    let resBid;
+    while (!this.bidIsFinal) {
+      while(!this.validateBidAction(resBid)) {
+        resBid = this.requestBidAction();
       }
+      this.pushBidAction(resBid);
     }
     console.log(`player ${playerIndex + 1} wins bid with ${this.rankOrder[bidRank]}`)
     this.bid = {
@@ -128,14 +176,14 @@ const game = {
     };
   },
 
-  getFirstPlayerIndex() {
+  getPlayerIndex() {
     return (
       this.lastTrick && this.players.indexOf(
         this.players.find(
           player => player.tricks.indexOf(this.lastTrick) !== -1
         )
       )
-    ) || this.rounds.length % 5;
+    ) || this.rounds.length + this.bid.bidActions.length % 5;
   },
 
   getTrick() {
@@ -149,9 +197,7 @@ const game = {
         console.log('err');
         resCard = prompt('throw a card: ');
       }
-      trick.push(
-        this.players[playerIndex].cards.splice(resCard - 1, 1)[0]
-      );
+      trick.push(this.players[playerIndex].cards[resCard - 1]);
 
       console.log(this.displayCards(trick));
       playerIndex = (playerIndex + 1) % 5;
