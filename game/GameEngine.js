@@ -4,7 +4,16 @@ const shuffle = require('lodash/shuffle');
 const random = require('lodash/random');
 const sortBy = require('lodash/sortBy');
 const flatten = require('lodash/flatten');
-const prompt = require('prompt-sync')();
+const dropRightWhile = require('lodash/dropRightWhile');
+const promptSync = require('prompt-sync')();
+
+function prompt(msg) {
+  let response = promptSync(msg);
+  if (response === null) {
+    throw('bye now');
+  }
+  return response;
+}
 
 const game = {
   rankOrder: [
@@ -28,24 +37,34 @@ const game = {
   ],
   rounds: [],
   tricks: [],
-  players: [...Array(5).keys()].map(() => ({score: 0, tricks: []})),
+  initializePlayers() {
+    const game = this;
+    this.players = [...Array(5).keys()].map(() => ({
+      score: 0,
+      get cards() {
+        return this.hand.filter(
+          card => game.trickCards.indexOf(card) === -1
+        )
+      }
+    }))
+  },
 
   get trickCards() {
-    return flatten(flatten(this.players.tricks))
+    return flatten(flatten(this.players.map(p => p.tricks)));
   },
   deal() {
     const cards = shuffle([...Array(40).keys()]).map(cardNum => this.getCard(cardNum));
-    this.players.forEach(
-      (player, i) => {
-        player.hand = sortBy(
-          cards.slice(i * 8, i * 8 + 8),
-          ['suit', 'rank']
-        );
-        player.cards = () => player.hand.filter(
-          card => this.trickCards.indexOf(card) === -1
-        );
-        player.tricks = [];
-      }
+    this.players = this.players.map(
+      (player, i) => Object.assign(
+        player,
+        {
+          hand: sortBy(
+            cards.slice(i * 8, i * 8 + 8),
+            ['suit', 'rank']
+          ),
+          tricks: [],
+        }
+      )
     );
   },
 
@@ -90,43 +109,59 @@ const game = {
       suit: null,
 
       get rank() {
-        const onlyRanks = this.bid.bidActions.filter(ba => !isNaN(ba));
+        if (!this.bidActions.length) {
+          return Number.POSITIVE_INFINITY;
+        }
+        const onlyRanks = this.bidActions.filter(ba => !isNaN(ba));
         return onlyRanks[onlyRanks.length - 1];
       },
       get points() {
         const onlyYs = this.bidActions.filter(ba => ba === 'Y');
         return onlyYs.length * 2 + 61;
       },
+      get isFinal() {
+        // bid is final if the points have been incremented to 119
+        // or the last 4 bid actions are passes
+        return this.points === 119 || this.bidActions.slice(
+          this.bidActions.length - 4,
+          this.bidActions.length
+        ).filter(ba => ba === 'P').length === 4;
+      }
     }
   },
   // index position of bidder in this.players
   get bidderIndex() {
-    for (let i = this.bid.bidActions.length - 1; i >= 0; i--) {
-      if (this.rankOrder[this.bid.bidActions[i]]) {
-        break;
-      }
-    }
-    return (this.roundFirstPlayerIndex + i + 1) % 5
+    const ignoreEndPasses = dropRightWhile(
+      this.bid.bidActions,
+      ba => ba === 'P'
+    );
+    return (this.roundFirstPlayerIndex + ignoreEndPasses.length - 1) % 5;
   },
   // index position of partner in this.players
   get partnerIndex() {
     const partnerCardNum = this.bid.suit * 10 + this.bid.rank;
+    return this.getPlayerIndexWithCardNum(partnerCardNum);
+  },
+
+  getPlayerIndexWithCardNum(cardNum) {
     return this.players.findIndex(
-      player => player.cards.map(card => card.cardNum).indexOf(partnerCard) !== -1
-    );
+      player => player.hand.map(card => cardNum).indexOf(cardNum) !== -1
+    )
   },
 
   pushBidAction(bidAction) {
-    this.bid.bidActions.push(budAction);
+    this.bid.bidActions.push(bidAction);
   },
 
 
-  roundFirstPlayerIndex() {
+  get roundFirstPlayerIndex() {
     return this.rounds.length % 5;
   },
   requestBidAction() {
-    const playerIndex = this.getPlayerIndex();
-    const bidRank = getBidRank();
+    const {playerIndex} = this;
+    console.log(`player ${playerIndex + 1}`)
+    console.log(this.displayCards(this.players[playerIndex].cards));
+    const bidRank = this.bid.rank;
 
     if (!this.rankOrder[bidRank]) {
       console.log('make the first bid');
@@ -141,92 +176,90 @@ const game = {
     return ret;
   },
 
-  get bidIsFinal() {
-    // bid is final if the points have been incremented to 119
-    // or the last 4 bid actions are passes
-    return this.bidPoints === 119 || this.bidActions.slice(
-      this.bidActions.length - 4,
-      this.bidActions.length
-    ).filter(ba => ba === 'P').length === 4;
-  },
-
   validateBidAction(bidAction) {
-    const currentBidRank = this.getCurrentBidRank();
-    const bidActionRank = this.rankOrder.indexOf(bidAction);
+    if (['Y', 'P'].indexOf(bidAction) === -1) {
+      bidAction = this.rankOrder.indexOf(bidAction);
+    }
+    const currentBidRank = this.bid.rank;
     return (
       (this.rankOrder[currentBidRank] && bidAction === 'P') ||
       (currentBidRank === 0 && bidAction === 'Y') ||
-      (bidActionRank !== -1 && bidActionRank < currentBidRank)
-    );
+      (bidAction > -1 && bidAction < currentBidRank)
+    ) && bidAction;
   },
 
   resolveBid() {
     let resBid;
-    while (!this.bidIsFinal) {
-      while(!this.validateBidAction(resBid)) {
-        resBid = this.requestBidAction();
+    this.initializeBid();
+    while (!this.bid.isFinal) {
+      resBid = this.validateBidAction(this.requestBidAction());
+      if (resBid !== false) {
+        console.log(`received bid ${resBid}`)
+        this.pushBidAction(resBid);
       }
-      this.pushBidAction(resBid);
     }
-    console.log(`player ${playerIndex + 1} wins bid with ${this.rankOrder[bidRank]}`)
-    this.bid = {
-      points,
-      bidderIndex: playerIndex,
-      rank: bidRank
-    };
+    console.log(`player ${this.bidderIndex + 1} wins bid with ${this.rankOrder[this.bid.rank]}`);
   },
 
-  getPlayerIndex() {
-    return (
-      this.lastTrick && this.players.indexOf(
+  get playerIndex() {
+    let preModulo;
+    if (this.lastTrick) {
+      preModulo = this.players.indexOf(
         this.players.find(
           player => player.tricks.indexOf(this.lastTrick) !== -1
         )
+      ) + this.trick.length
+    } else {
+      preModulo = this.roundFirstPlayerIndex + (
+        this.bid && this.bid.isFinal
+        ? this.trick.length
+        : this.bid.bidActions.length
       )
-    ) || this.rounds.length + this.bid.bidActions.length % 5;
+    }
+    return preModulo % 5;
   },
 
-  getTrick() {
+  requestTrickCard() {
+    let {playerIndex} = this;
+    console.log(`player ${playerIndex + 1}`)
+    console.log(this.displayCards(this.players[playerIndex].cards));
+    let resCard = prompt('throw a card: ');
+    while(isNaN(resCard) || resCard < 1 || resCard > this.players[playerIndex].cards.length) {
+      console.log('err');
+      resCard = prompt('throw a card: ');
+    }
+    return this.players[playerIndex].cards[resCard - 1];
+
+    console.log(this.displayCards(trick));
+  },
+
+  requestBidSuit() {
+    console.log('please announce trump');
+    const bidder = this.players[this.bidderIndex];
+
+    console.log(`player ${this.bidderIndex + 1}`)
+    console.log(this.displayCards(bidder.cards));
+    let resSuit;
+    while ([undefined, -1].indexOf(resSuit) !== -1) {
+      resSuit = this.suitOrder.indexOf(
+        prompt('pick a trump suit (H, C, D or S): ')
+      );
+    }
+    return resSuit;
+
+  },
+
+  playTrick() {
     const trick = this.trick = [];
-    let playerIndex = this.getFirstPlayerIndex();
     while (trick.length < 5) {
-      console.log(`player ${playerIndex + 1}`)
-      console.log(this.displayCards(this.players[playerIndex].cards));
-      let resCard = prompt('throw a card: ');
-      while(isNaN(resCard) || resCard < 1 || resCard > this.players[playerIndex].cards.length) {
-        console.log('err');
-        resCard = prompt('throw a card: ');
-      }
-      trick.push(this.players[playerIndex].cards[resCard - 1]);
-
-      console.log(this.displayCards(trick));
-      playerIndex = (playerIndex + 1) % 5;
+      trick.push(this.requestTrickCard());
     }
-    if (!this.suitOrder[this.bid.suit]) {
-      console.log('please announce trump');
-      const bidder = this.players[this.bid.bidderIndex];
-
-      console.log(`player ${this.bid.bidderIndex + 1}`)
-      console.log(this.displayCards(bidder.cards));
-      let resSuit = prompt('pick a trump suit: ');
-      while (this.suitOrder.indexOf(resSuit) === -1) {
-        console.log('err');
-        resSuit = prompt('pick a trump suit: ');
-      }
-      this.bid.suit = this.suitOrder.indexOf(resSuit);
-      const partnerCard = this.bid.suit * 10 + this.bid.rank;
-      const partner = this.players.find(
-        (player, i) => player.cards.concat(
-          [trick[(this.getFirstPlayerIndex() + i) % 5]]
-        ).map(card => card.cardNum).indexOf(partnerCard) !== -1
-      )
-      console.log(`partner is player ${this.players.indexOf(partner) + 1}`)
-      console.log(this.displayCards(partner.cards));
-      this.bid.partnerIndex = this.players.indexOf(partner);
+    if (!this.bid.suit) {
+      this.bid.suit = this.requestBidSuit();
     }
-    const winner = this.resolveTrickWinner(trick);
-    winner.tricks.push(trick);
-    console.log(`player ${this.players.indexOf(winner) + 1} takes trick`)
+    const winnerIndex = this.resolveTrickWinner(trick);
+    this.players[winnerIndex].tricks.push(trick);
+    console.log(`player ${winnerIndex + 1} takes trick`)
     this.lastTrick = trick;
     return trick;
   },
@@ -246,15 +279,14 @@ const game = {
         winner = winner.rank > contender.rank ? winner : contender;
       }
     }
-    const index = trick.indexOf(winner);
-    return this.players[(this.getFirstPlayerIndex() + index) % 5];
+    return this.getPlayerIndexWithCardNum(winner.cardNum);
   },
 
   getBidTeamPoints() {
     const trickCards = flatten(
-      this.players[this.bid.bidderIndex].tricks.concat(
-        this.bid.bidderIndex !== this.bid.partnerIndex
-        ? this.players[this.bid.partnerIndex].tricks
+      this.players[this.bidderIndex].tricks.concat(
+        !this.bidderIsPartner
+        ? this.players[this.partnerIndex].tricks
         : []
       )
     );
@@ -263,15 +295,15 @@ const game = {
 
   getDefendTeamPoints() {
     const trickCards = flatten(flatten(this.players.filter(
-      (p, i) => [this.bid.bidderIndex, this.bid.partnerIndex].indexOf(i) === -1
+      (p, i) => [this.bidderIndex, this.partnerIndex].indexOf(i) === -1
     ).map(p => p.tricks)));
     return this.getPointsForCards(trickCards);
   },
-  bidderIsPartner() {
-    return this.bid.bidderIndex === this.bid.partnerIndex;
+  get bidderIsPartner() {
+    return this.bidderIndex === this.partnerIndex;
   },
   isBidTeam(playerIndex) {
-    return [this.bid.bidderIndex, this.bid.partnerIndex].indexOf(playerIndex) !== -1;
+    return [this.bidderIndex, this.partnerIndex].indexOf(playerIndex) !== -1;
   },
   scorePlayer(playerIndex, bidTeamWins) {
     return (
@@ -279,8 +311,8 @@ const game = {
       ? 1
       : -1
     ) * (
-      playerIndex === this.bid.bidderIndex
-      ? this.bidderIsPartner() ? 4 : 2
+      playerIndex === this.bidderIndex
+      ? this.bidderIsPartner ? 4 : 2
       : 1
     );
   },
@@ -292,13 +324,20 @@ const game = {
   },
 
   main() {
+    this.initializePlayers();
     while (!this.players.filter(player => player.score >= 3).length) {
       this.deal()
       this.resolveBid()
-      // this.players[3].bid = 4
       while (this.players[0].cards.length) {
-        this.getTrick()
+        this.playTrick();
         console.log(this.players)
+
+        if (!this.suitOrder[this.bid.suit]) {
+          this.bid.suit = this.requestBidSuit();
+
+          console.log(`partner is player ${this.partnerIndex + 1}`)
+          console.log(this.displayCards(this.players[partnerIndex].hand));
+        }
       }
       const bidTeamPoints = this.getBidTeamPoints();
       const defendTeamPoints = this.getDefendTeamPoints();
@@ -317,3 +356,4 @@ const game = {
 }
 
 game.main();
+// module.exports = game;
