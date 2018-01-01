@@ -9,7 +9,7 @@ function prompt(msg) {
   return response;
 }
 
-const cli = {
+const cli = module.exports = {
 
   rankOrder: [
     '2',
@@ -62,7 +62,6 @@ const cli = {
 
   resolveBid(game) {
     let resBid;
-    game.initializeBid();
     while (!game.bid.isFinal) {
       resBid = this.requestBidAction(game);
       if (['Y', 'P'].indexOf(resBid) === -1) {
@@ -133,7 +132,7 @@ const cli = {
     const game = GameEngine();
     game.initializePlayers();
     while (!game.players.filter(player => player.score >= 3).length) {
-      game.deal()
+      game.initializeRound();
       this.resolveBid(game);
       while (game.players[0].cards.length) {
         this.playTrick(game);
@@ -148,4 +147,4 @@ const cli = {
   }
 };
 
-cli.main();
+// cli.main();

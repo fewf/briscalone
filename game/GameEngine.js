@@ -123,7 +123,8 @@ module.exports = () => ({
     };
   },
 
-  initializeBid() {
+  initializeRound() {
+    this.deal();
     this.bid = {
       // keeps track of bid responses
       // each item can be: rank, P for pass or Y for point bid]
@@ -151,6 +152,7 @@ module.exports = () => ({
         ).filter(ba => ba === 'P').length === 4;
       }
     }
+    this.tricks = [];
   },
 
   getPlayerIndexWithCardNum(cardNum) {

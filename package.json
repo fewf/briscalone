@@ -9,6 +9,7 @@
   "author": "fewf",
   "license": "ISC",
   "dependencies": {
+    "express": "^4.16.2",
     "lodash": "^4.17.4",
     "prompt-sync": "^4.1.5",
     "ws": "^3.3.3"
