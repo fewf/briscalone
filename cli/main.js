@@ -25,10 +25,10 @@ const cli = module.exports = {
   ],
 
   suitOrder: [
-    'C',
-    'D',
+    'S',
     'H',
-    'S'
+    'D',
+    'C'
   ],
 
   displayCards(cards) {

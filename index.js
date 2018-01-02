@@ -21,6 +21,11 @@ function broadcast(message) {
   playerSockets.forEach(ps => ps.send(message));
 }
 
+const cardGlyphs = ['🂢', '🂲', '🃂', '🃒', '🂣', '🂳', '🃃', '🃓', '🂤', '🂴', '🃄', '🃔', '🂥', '🂵', '🃅', '🃕', '🂦', '🂶', '🃆', '🃖', '🂫', '🂻', '🃋', '🃛', '🂭', '🂽', '🃍', '🃝', '🂮', '🂾', '🃎', '🃞', '🂪', '🂺', '🃊', '🃚', '🂡', '🂱', '🃁', '🃑'];
+function displayCards(cards) {
+  return cards.map(card => cardGlyphs[card.cardNum]).join(' ');
+}
+
 wss.on("connection", function(ws) {
 
   if (playerSockets.length < 5) {
@@ -33,7 +38,7 @@ wss.on("connection", function(ws) {
       broadcast('"game has begun"');
       game.initializePlayers();
       game.initializeRound();
-      playerSockets.forEach((pws, i) => pws.send(JSON.stringify(cli.displayCards(game.players[i].hand))));
+      playerSockets.forEach((pws, i) => pws.send(JSON.stringify(displayCards(game.players[i].hand))));
       playerSockets[game.playerIndex].send('"please make your bid"');
     }
   }
@@ -62,7 +67,7 @@ wss.on("connection", function(ws) {
         } else {
           broadcast(`"player ${game.bidderIndex + 1} wins bid with ${cli.rankOrder[game.bid.rank]}"`);
           playerSockets[game.playerIndex].send('"please throw a card"');
-          playerSockets[game.playerIndex].send(JSON.stringify(cli.displayCards(game.players[i].hand)));
+          playerSockets[game.playerIndex].send(JSON.stringify(displayCards(game.players[i].hand)));
         }
         break;
       case 'throw':
@@ -71,7 +76,7 @@ wss.on("connection", function(ws) {
           ws.send('"err try again"');
         } else {
           game.trick.push(game.players[game.playerIndex].cards[cardIndex]);
-          broadcast(cli.displayCards(game.trick));
+          broadcast(displayCards(game.trick));
           playerSockets[game.playerIndex].send('"please throw a card"')
         }
         if (game.trick.length === 5) {
