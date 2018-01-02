@@ -8,13 +8,12 @@ const dropRightWhile = require('lodash/dropRightWhile');
 
 module.exports = () => ({
   rounds: [],
-  tricks: [],
   initializePlayers() {
     const game = this;
     this.players = [...Array(5).keys()].map(() => ({
       score: 0,
       get cards() {
-        return this.hand.filter(
+        return this.hand && this.hand.filter(
           card => game.trickCards.indexOf(card) === -1
         )
       }
@@ -22,10 +21,13 @@ module.exports = () => ({
   },
 
   get trickCards() {
-    return flatten(flatten(this.players.map(p => p.tricks)));
+    return this.players && flatten(flatten(this.players.map(p => p.tricks)));
   },
   // index position of bidder in this.players
   get bidderIndex() {
+    if (!this.bid || !this.bid.isFinal) {
+      return null;
+    }
     const ignoreEndPasses = dropRightWhile(
       this.bid.bidActions,
       ba => ba === 'P'
@@ -34,6 +36,9 @@ module.exports = () => ({
   },
   // index position of partner in this.players
   get partnerIndex() {
+    if (!this.bid || !this.bid.suit) {
+      return null;
+    }
     const partnerCardNum = this.bid.suit * 10 + this.bid.rank;
     return this.getPlayerIndexWithCardNum(partnerCardNum);
   },
@@ -44,6 +49,9 @@ module.exports = () => ({
 
 
   get playerIndex() {
+    if (!this.bid) {
+      return this.roundFirstPlayerIndex;
+    }
     let preModulo;
     if (this.lastTrick) {
       preModulo = this.players.indexOf(
@@ -66,6 +74,9 @@ module.exports = () => ({
   },
 
   get bidTeamPoints() {
+    if (!this.bid) {
+      return null;
+    }
     const trickCards = flatten(
       this.players[this.bidderIndex].tricks.concat(
         !this.bidderIsPartner
@@ -77,6 +88,9 @@ module.exports = () => ({
   },
 
   get defendTeamPoints() {
+    if (!this.bid) {
+      return null;
+    }
     const trickCards = flatten(flatten(this.players.filter(
       (p, i) => [this.bidderIndex, this.partnerIndex].indexOf(i) === -1
     ).map(p => p.tricks)));

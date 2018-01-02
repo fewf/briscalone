@@ -26,20 +26,41 @@ function displayCards(cards) {
   return cards.map(card => cardGlyphs[card.cardNum]).join(' ');
 }
 
+function serializeGame(game, playerIndex) {
+  let {
+    rounds,
+    players,
+    trick,
+    lastTrick,
+    bid
+  } = game;
+  players = JSON.parse(JSON.stringify(players));
+  players = players.map(
+    (player, i) => i === playerIndex
+    ? player
+    : Object.assign(player, {hand: [], cards: []})
+  )
+  return {
+    rounds,
+    players,
+    trick,
+    lastTrick,
+    bid
+  };
+}
+game.initializePlayers();
+
 wss.on("connection", function(ws) {
 
   if (playerSockets.length < 5) {
-    playerSockets.push(ws);
-    console.log(`player ${playerSockets.length} joined`)
-    ws.send(`"you are player ${playerSockets.length}"`)
+    const playerIndex = playerSockets.push(ws) - 1;
+    console.log(`player ${playerSockets.length} joined`);
+    ws.send(JSON.stringify({game: serializeGame(game, playerIndex)}));
 
 
     if (playerSockets.length === 5) {
-      broadcast('"game has begun"');
-      game.initializePlayers();
       game.initializeRound();
-      playerSockets.forEach((pws, i) => pws.send(JSON.stringify(displayCards(game.players[i].hand))));
-      playerSockets[game.playerIndex].send('"please make your bid"');
+      playerSockets.forEach((pws, i) => pws.send(JSON.stringify({game: serializeGame(game, i)})));
     }
   }
 

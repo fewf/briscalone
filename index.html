@@ -35,31 +35,7 @@
       <input id="messageInput" name="message" type="text" />
       <button type="submit">submit</button>
     </form>
-    <div>
-      <h1>Pings</h1>
-      <ul id='pings'></ul>
-    </div>
+    <div id="root" />
   </body>
-  <script>
-    var host = location.origin.replace(/^http/, 'ws')
-    var ws = new WebSocket(host);
-    ws.onmessage = function (event) {
-      var li = document.createElement('li');
-      li.innerHTML = JSON.parse(event.data);
-      document.querySelector('#pings').prepend(li);
-    };
-    var form = document.querySelector("form");
-
-    form.addEventListener("submit", function(event) {
-      var toSend = {};
-      var data = new FormData(form);
-      console.log(data);
-      for (const entry of data) {
-        toSend[entry[0]] = entry[1];
-      }
-      console.log(toSend);
-      ws.send(JSON.stringify(toSend));
-      event.preventDefault();
-    }, false);
-  </script>
+  <script src="build/bundle.js"></script>
 </html>
