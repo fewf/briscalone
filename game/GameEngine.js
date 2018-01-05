@@ -6,7 +6,7 @@ const sortBy = require('lodash/sortBy');
 const flatten = require('lodash/flatten');
 const dropRightWhile = require('lodash/dropRightWhile');
 
-module.exports = () => ({
+module.exports = (state = {}) => ({
   rounds: [],
   initializePlayers() {
     const game = this;
@@ -231,5 +231,6 @@ module.exports = () => ({
     this.trick = null;
     this.lastTrick = null;
     this.rounds.push(this.players.map(p => p.tricks));
-  }
+  },
+  ...state
 });

@@ -5,6 +5,7 @@ var app = express()
 var port = process.env.PORT || 5000
 const game = require('./game/GameEngine')();
 const cli = require('./cli/main');
+const sockets = [];
 const playerSockets = [];
 
 app.use(express.static(__dirname + "/"))
@@ -17,16 +18,17 @@ console.log("http server listening on %d", port)
 var wss = new WebSocketServer({server: server})
 console.log("websocket server created")
 
-function broadcast(message) {
-  playerSockets.forEach(ps => ps.send(message));
+function broadcastGame(game) {
+  playerSockets.forEach((ps, i) => ps.websocket.send(JSON.stringify({
+    game: serializeGame(game, i)
+  })));
 }
 
-const cardGlyphs = ['🂢', '🂲', '🃂', '🃒', '🂣', '🂳', '🃃', '🃓', '🂤', '🂴', '🃄', '🃔', '🂥', '🂵', '🃅', '🃕', '🂦', '🂶', '🃆', '🃖', '🂫', '🂻', '🃋', '🃛', '🂭', '🂽', '🃍', '🃝', '🂮', '🂾', '🃎', '🃞', '🂪', '🂺', '🃊', '🃚', '🂡', '🂱', '🃁', '🃑'];
 function displayCards(cards) {
   return cards.map(card => cardGlyphs[card.cardNum]).join(' ');
 }
 
-function serializeGame(game, playerIndex) {
+function serializeGame(game, serializeForPlayerIndex) {
   let {
     rounds,
     players,
@@ -36,9 +38,13 @@ function serializeGame(game, playerIndex) {
   } = game;
   players = JSON.parse(JSON.stringify(players));
   players = players.map(
-    (player, i) => i === playerIndex
-    ? player
-    : Object.assign(player, {hand: [], cards: []})
+    (player, i) => i === serializeForPlayerIndex
+    ? {...player, isClient: true}
+    : {
+        ...player,
+        hand: player.hand && player.hand.map(card => ({})),
+        cards: player.cards && player.cards.map(card => ({}))
+      }
   )
   return {
     rounds,
@@ -51,87 +57,90 @@ function serializeGame(game, playerIndex) {
 game.initializePlayers();
 
 wss.on("connection", function(ws) {
+  sockets.push(ws);
 
-  if (playerSockets.length < 5) {
-    const playerIndex = playerSockets.push(ws) - 1;
-    console.log(`player ${playerSockets.length} joined`);
-    ws.send(JSON.stringify({game: serializeGame(game, playerIndex)}));
-
-
-    if (playerSockets.length === 5) {
-      game.initializeRound();
-      playerSockets.forEach((pws, i) => pws.send(JSON.stringify({game: serializeGame(game, i)})));
-    }
-  }
+  ws.send('echo');
 
   console.log("websocket connection open")
 
   ws.on("message", function(event) {
     const message = JSON.parse(event);
     console.log(message);
-    if (playerSockets.indexOf(ws) !== game.playerIndex) {
+    if (message.messageType === 'initialize') {
+      console.log(playerSockets);
+      const disconnectedSocket = playerSockets.find(
+        ps => ps.socketKey === message.message && !ps.websocket
+      );
+      if (disconnectedSocket) {
+        disconnectedSocket.websocket = ws;
+        console.log('reseating player ' + playerSockets.indexOf(disconnectedSocket))
+        ws.send(JSON.stringify({
+          playerIndex: playerSockets.indexOf(disconnectedSocket),
+          socketKey: message.message
+        }));
+      } else if (playerSockets.length < 5) {
+        const playerIndex = playerSockets.push({
+          websocket: ws,
+          socketKey: Math.random().toString(36).substring(6)
+        }) - 1;
+        console.log(`player ${playerSockets.length} joined`);
+        ws.send(JSON.stringify({
+          playerIndex,
+          socketKey: playerSockets[playerIndex].socketKey
+        }));
+      }
+      if (playerSockets.length === 5) {
+        game.initializeRound();
+        playerSockets.forEach(
+          (pws, i) => pws.websocket && pws.websocket.send(
+            JSON.stringify({game: serializeGame(game, i)})
+          )
+        );
+      }
+      return;
+    }
+    if (playerSockets.findIndex(ps => ps.websocket === ws) !== game.playerIndex) {
+      console.log('hola')
       return;
     }
     switch(message.messageType) {
       case 'bid':
         let bidAction = message.message;
-        if (['Y', 'P'].indexOf(bidAction) === -1) {
-          bidAction = cli.rankOrder.indexOf(bidAction);
-        }
         bidAction = game.validateBidAction(bidAction);
+        console.log(bidAction)
         if (bidAction !== false) {
-          broadcast(`"player ${game.playerIndex} bids ${message.message}"`)
+          console.log('sup');
           game.pushBidAction(bidAction);
-        }
-        if (!game.bid.isFinal) {
-          playerSockets[game.playerIndex].send('"please make your bid"');
-        } else {
-          broadcast(`"player ${game.bidderIndex + 1} wins bid with ${cli.rankOrder[game.bid.rank]}"`);
-          playerSockets[game.playerIndex].send('"please throw a card"');
-          playerSockets[game.playerIndex].send(JSON.stringify(displayCards(game.players[i].hand)));
+          broadcastGame(game);
         }
         break;
       case 'throw':
         let cardIndex = message.message - 1;
-        if (isNaN(cardIndex) || !game.players[game.playerIndex].cards[cardIndex]) {
-          ws.send('"err try again"');
-        } else {
+        if (!isNaN(cardIndex) && game.players[game.playerIndex].cards[cardIndex]) {
           game.trick.push(game.players[game.playerIndex].cards[cardIndex]);
-          broadcast(displayCards(game.trick));
-          playerSockets[game.playerIndex].send('"please throw a card"')
         }
-        if (game.trick.length === 5) {
-          if (isNaN(game.bid.suit)) {
-            broadcast('"monkey must be called"')
-            playerSockets[game.bidderIndex].send("'call monkey'")
-          } else if (!game.players[0].cards.length) {
-
-            broadcast(`"bid side points: ${game.bidTeamPoints}"`)
-            broadcast(`"defend side points: ${game.defendTeamPoints}"`)
+        if (game.trick.length === 5 && !isNaN(game.bid.suit)) {
+          const winnerIndex = game.resolveTrickWinner(game.trick);
+          game.players[winnerIndex].tricks.push(trick);
+          game.lastTrick = game.trick;
+          if (!game.players[0].cards.length) {
             game.endRound();
-            broadcast(`"${game.players.map(p => p.score).join(' | ')}"`)
-          } else {
-            const winnerIndex = game.resolveTrickWinner(game.trick);
-            game.players[winnerIndex].tricks.push(trick);
-            broadcast(`"player ${winnerIndex + 1} takes trick"`)
-            game.lastTrick = game.trick;
             game.initializeRound();
           }
         }
+        broadcastGame(game);
         break;
       case 'monkey':
-        if (cli.suitOrder.indexOf(message.message) !== -1) {
-          playerSockets[game.bidderIndex].send('"C, D, H or S"');
-          return
-        } else {
-          game.bid.suit = cli.suitOrder.indexOf(message.message);
-          broadcast(`"monkey suit is ${message.message}"`);
-          playerSockets[game.playerIndex].send('"please throw a card"');
+        if (cli.suitOrder[message.message]) {
+          game.bid.suit = cli.suitOrder[message.message];
+          broadcastGame(game);
         }
         break;
     }
-  })
+  });
   ws.on("close", function() {
     console.log("websocket connection close")
+    const playerSocket = playerSockets.find(ps => ps.websocket === ws);
+    if (playerSocket) playerSocket.websocket = null;
   })
 });
