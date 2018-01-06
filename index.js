@@ -89,7 +89,7 @@ wss.on("connection", function(ws) {
           socketKey: playerSockets[playerIndex].socketKey
         }));
       }
-      if (playerSockets.length === 5) {
+      if (playerSockets.length === 5 && !game.bid) {
         game.initializeRound();
         playerSockets.forEach(
           (pws, i) => pws.websocket && pws.websocket.send(
@@ -115,24 +115,13 @@ wss.on("connection", function(ws) {
         }
         break;
       case 'throw':
-        let cardIndex = message.message - 1;
-        if (!isNaN(cardIndex) && game.players[game.playerIndex].cards[cardIndex]) {
-          game.trick.push(game.players[game.playerIndex].cards[cardIndex]);
+        if (game.pushTrickCard(message.message)) {
+          broadcastGame(game);
         }
-        if (game.trick.length === 5 && !isNaN(game.bid.suit)) {
-          const winnerIndex = game.resolveTrickWinner(game.trick);
-          game.players[winnerIndex].tricks.push(trick);
-          game.lastTrick = game.trick;
-          if (!game.players[0].cards.length) {
-            game.endRound();
-            game.initializeRound();
-          }
-        }
-        broadcastGame(game);
         break;
       case 'monkey':
         if (cli.suitOrder[message.message]) {
-          game.bid.suit = cli.suitOrder[message.message];
+          game.setSuit(message.message);
           broadcastGame(game);
         }
         break;

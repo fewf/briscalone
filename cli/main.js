@@ -115,14 +115,14 @@ const cli = module.exports = {
     }
 
     if (!this.suitOrder[game.bid.suit]) {
-      game.bid.suit = this.requestBidSuit(game);
+      game.setSuit(this.requestBidSuit(game));
 
       console.log(`partner is player ${game.partnerIndex + 1}`)
       console.log(this.displayCards(game.players[game.partnerIndex].hand));
     }
     const winnerIndex = game.resolveTrickWinner(trick);
     console.log(winnerIndex);
-    game.players[winnerIndex].tricks.push(trick);
+    game.players[winnerIndex].resolveTrickWinnertricks.push(trick);
     console.log(`player ${winnerIndex + 1} takes trick`)
     game.lastTrick = trick;
     return trick;

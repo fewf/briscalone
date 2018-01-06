@@ -8,6 +8,8 @@ const dropRightWhile = require('lodash/dropRightWhile');
 
 module.exports = (state = {}) => ({
   rounds: [],
+  trick: [],
+  lastTrick: null,
   initializePlayers() {
     const game = this;
     this.players = [...Array(5).keys()].map(() => ({
@@ -36,7 +38,7 @@ module.exports = (state = {}) => ({
   },
   // index position of partner in this.players
   get partnerIndex() {
-    if (!this.bid || !this.bid.suit) {
+    if (!this.bid || isNaN(this.bid.suit)) {
       return null;
     }
     const partnerCardNum = this.bid.suit * 10 + this.bid.rank;
@@ -51,6 +53,8 @@ module.exports = (state = {}) => ({
   get playerIndex() {
     if (!this.bid) {
       return this.roundFirstPlayerIndex;
+    } else if (this.trick.length === 5 && isNaN(this.bid.suit)) {
+      return this.bidderIndex;
     }
     let preModulo;
     if (this.lastTrick) {
@@ -144,7 +148,7 @@ module.exports = (state = {}) => ({
       // each item can be: rank, P for pass or Y for point bid]
       bidActions: [],
       // records monkey suit
-      suit: null,
+      suit: undefined,
 
       get rank() {
         if (!this.bidActions.length) {
@@ -167,6 +171,8 @@ module.exports = (state = {}) => ({
       }
     }
     this.tricks = [];
+    this.trick = [];
+    this.lastTrick = null;
   },
 
   getPlayerIndexWithCardNum(cardNum) {
@@ -188,7 +194,42 @@ module.exports = (state = {}) => ({
     ) && bidAction;
   },
 
+  setSuit(suit) {
+    this.bid.suit = suit;
+    this.endTrick();
+  },
+
+  pushTrickCard(trickCardNum) {
+    const currentPlayer = this.players[this.playerIndex];
+    const card = currentPlayer.cards.find(card => card.cardNum === trickCardNum);
+    if (!card) {
+      return false;
+    }
+
+    if (this.trick.push(card) === 5 && !isNaN(this.bid.suit)) {
+      console.log('this.bid.suit')
+      console.log(this.bid.suit);
+
+      this.endTrick();
+    }
+    return true;
+  },
+
+  endTrick() {
+    const winnerIndex = this.resolveTrickWinner(this.trick);
+    this.players[winnerIndex].tricks.push(this.trick);
+    this.lastTrick = this.trick;
+    this.trick = [];
+    if (!this.players[0].cards.length) {
+      this.endRound();
+      this.initializeRound();
+    }
+  },
+
   resolveTrickWinner(trick) {
+    if (isNaN(this.bid.suit)) {
+      throw('Briscalone Error: cannot resolve trick winner before suit is set.');
+    }
     let winner = trick[0];
     let contender;
     for (var i = 1; i < trick.length; i++) {
@@ -228,8 +269,6 @@ module.exports = (state = {}) => ({
   },
   endRound() {
     this.scoreRound();
-    this.trick = null;
-    this.lastTrick = null;
     this.rounds.push(this.players.map(p => p.tricks));
   },
   ...state
