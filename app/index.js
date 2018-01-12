@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
+const sortBy = require('lodash/sortBy');
 const GameEngine = require('../game/GameEngine');
 const cardGlyphs = ['🂢', '🂣', '🂤', '🂥', '🂦', '🂫', '🂭', '🂮', '🂪', '🂡', '🂲', '🂳', '🂴', '🂵', '🂶', '🂻', '🂽', '🂾', '🂺', '🂱', '🃂', '🃃', '🃄', '🃅', '🃆', '🃋', '🃍', '🃎', '🃊', '🃁', '🃒', '🃓', '🃔', '🃕', '🃖', '🃛', '🃝', '🃞', '🃚', '🃑'];
 const rankOrder = [
@@ -27,13 +28,14 @@ class BriscaloneApp extends React.Component {
     const stored = window.localStorage.getItem('state');
     if (stored) {
       this.state = JSON.parse(stored);
-      this.state.game = GameEngine(this.state.game);
+      this.state.game = GameEngine(this.state.game.rounds);
     } else {
       this.state = {
         game: GameEngine()
       };
     }
     this.renderPlayer = this.renderPlayer.bind(this);
+    this.renderScore = this.renderScore.bind(this);
     this.initializeClient = this.initializeClient.bind(this);
   }
   componentDidMount() {
@@ -47,35 +49,58 @@ class BriscaloneApp extends React.Component {
       ws.onmessage = ({data}) => {
         this.initializeClient(JSON.parse(data));
         ws.onmessage = ({data}) => {
-          console.log(JSON.parse(data).game)
-          this.setState({game: GameEngine(JSON.parse(data).game)});
+          const message = JSON.parse(data);
+          this.setState({
+            game: GameEngine(message.game),
+            seatIndex: message.seatIndex
+          });
         };
       }
     }
     this.setState({ws});
   }
-  componentDidUpdate(prevProps, prevState) {
-    const {
-      rounds,
-      players,
-      trick,
-      lastTrick,
-      bid
-    } = this.state.game;
-    window.localStorage.setItem(
-      'state',
-      JSON.stringify({
-        ...this.state,
-        game: {
-          rounds,
-          players,
-          trick,
-          lastTrick,
-          bid
+  renderScore() {
+    const {game} = this.state;
+    const roundScores = game.rounds.filter(
+      roundData => game.loadRound(roundData).isFinal
+    ).map(
+      roundData => {
+        const round = game.loadRound(roundData);
+        return round.playerHands.map(
+          (hand, i) => round.scorePlayer(
+            i,
+            round.bidTeamPoints >= round.bidPoints
+          )
+        )
+      }
+    )
+    return <table><tbody>
+      {
+        roundScores.map(
+          (scores, i) => (
+            <tr key={i}>
+              {
+                scores.map((score, j) =>
+                  <td key={j}>{score}</td>
+                )
+              }
+            </tr>
+          )
+        )
+      }
+      <tr>
+        {
+          [...Array(5).keys()].map(idx =>
+            [...Array(roundScores.length).keys()].reduce(
+              (sum, idx2) => sum + roundScores[idx2][idx],
+              0
+            )
+          ).map((total, i) => <td>{total}</td>)
         }
-      })
-    );
+      </tr>
+    </tbody></table>
   }
+
   initializeClient(data) {
     const socketKey = window.localStorage.getItem('socketKey');
     if (socketKey !== data.socketKey) {
@@ -83,12 +108,26 @@ class BriscaloneApp extends React.Component {
       this.setState({playerIndex: data.playerIndex});
     }
   }
-  renderPlayer(player, index) {
-    const {game, ws} = this.state;
-    const isCurrentPlayer = game.playerIndex === index;
-    const offset = (index + 5 - game.players.findIndex(p => p.isClient)) % 5;
-    const playerLastBid = game.bid.bidActions.slice(Math.floor(game.bid.bidActions.length/5) * 5)[index];
-    console.log(game);
+
+  renderPlayer(playerHand, index) {
+    const {game, ws, seatIndex} = this.state;
+    const round = game.loadRound();
+    const isCurrentPlayer = round.playerIndex === index;
+    const isSeatedPlayer = seatIndex === index;
+    const offset = (index + 5 - seatIndex) % 5;
+    const playerCard = round.trick && round.trick[
+      (index + 5 - game.loadRound(
+        {
+          ...game.roundData,
+          trickCards: round.trickCards.slice(
+            0, Math.floor(round.trickCards.length/5) * 5
+          )
+        }
+      ).playerIndex) % 5
+    ]
+    const playerLastBid = round.bidActions.slice(Math.floor(round.bidActions.length/5) * 5)[(round.roundFirstPlayerIndex + index) % 5];
+    console.log(round.bidActions.slice(Math.floor(round.bidActions.length/5) * 5))
+    console.log((round.roundFirstPlayerIndex + index) % 5)
     return (
       <div
         key={index}
@@ -111,20 +150,34 @@ class BriscaloneApp extends React.Component {
             '80%'
           ][offset]
         }}>
+        {
+          !isNaN(playerCard)
+          ? (
+              <span
+                style={{
+                  color: [1, 2].indexOf(round.getSuit(playerCard)) !== -1 ? 'red' : 'white',
+                  fontSize: 35
+                }}
+              >
+                {cardGlyphs[playerCard]}
+              </span>
+            )
+          : null
+        }
         <p>Player {index + 1}</p>
         <p>
           {
-            player.cards && player.cards.map(
+            sortBy(playerHand, [round.getSuit, round.getRank]).map(
               card => (
-                !isNaN(card.cardNum)
+                isSeatedPlayer
                 ? <span
-                    onClick={() => ws.send(JSON.stringify({messageType: 'throw', message: card.cardNum}))}
+                    onClick={() => ws.send(JSON.stringify({messageType: 'throw', message: card}))}
                     style={{
-                      color: [1, 2].indexOf(card.suit) !== -1 ? 'red' : 'white',
+                      color: [1, 2].indexOf(round.getSuit(card)) !== -1 ? 'red' : 'white',
                       fontSize: 45
                     }}
                   >
-                    {cardGlyphs[card.cardNum]}
+                    {cardGlyphs[card]}
                   </span>
                 : '🂠 '
               )
@@ -133,14 +186,14 @@ class BriscaloneApp extends React.Component {
         </p>
         <p>
           {
-            game.bid && !game.bid.isFinal
+            !round.bidIsFinal
             ? <p>Last bid: {rankOrder[playerLastBid] ? rankOrder[playerLastBid] : playerLastBid}</p>
             : null
           }
           {
-            !player.isClient || !isCurrentPlayer || !game.bid
+            !isSeatedPlayer || !isCurrentPlayer
             ? null
-            : !game.bid.isFinal
+            : !round.bidIsFinal
             ? (
                 <span>
                   <button
@@ -149,11 +202,11 @@ class BriscaloneApp extends React.Component {
                     Pass
                   </button>
                   {
-                    game.bid.rank === 0
+                    round.bidRank === 0
                     ? <button
                         onClick={() => ws.send(JSON.stringify({messageType: 'bid', message: 'Y'}))}
                       >
-                        2 and {game.bid.points + 2} points
+                        2 and {round.bidPoints + 2} points
                       </button>
                     : rankOrder.map(
                         (rank, i) => (
@@ -169,7 +222,7 @@ class BriscaloneApp extends React.Component {
                   }
                 </span>
               )
-            : game.trick && game.trick.length === 5 && isNaN(game.bid.suit)
+            : round.trick && round.trick.length === 5 && isNaN(round.monkeySuit)
             ? suitOrder.map((suit, i) => (
                   <span onClick={() => ws.send(JSON.stringify({messageType: 'monkey', message: i}))}>
                     {suit}
@@ -184,39 +237,22 @@ class BriscaloneApp extends React.Component {
   }
   render() {
     const {game} = this.state;
-    // if (!game.players) {
-    //   return <h1>Waiting for more players</h1>
-    // }
-    // const clientPlayerFirst = [...game.players];
-    // while(!clientPlayerFirst[0].isClient) {
-    //   clientPlayerFirst.push(clientPlayerFirst.shift());
-    // }
+
+    if (!game.rounds.length) {
+      console.log(game.rounds)
+      return <div><h1>Waiting for more players</h1><button onClick={() => window.localStorage.clear()}>clear ls</button></div>
+    }
+    const round = game.loadRound();
     return (
       <div>
-        <h1>BRISCALONE</h1>
         <div style={{position: 'relative', width: '100%', height: '100%'}}>
           {
-            game.players && game.players.map(
+            round.playerHands && round.playerHands.map(
               this.renderPlayer
             )
           }
-          <div style={{position: 'absolute', top: '33%', left: '33%'}}>
-            {
-              game.trick && game.trick.map(
-                card => (
-                  <span
-                    style={{
-                      color: [1, 2].indexOf(card.suit) !== -1 ? 'red' : 'white',
-                      fontSize: 35
-                    }}
-                  >
-                    {cardGlyphs[card.cardNum]}
-                  </span>
-                )
-              )
-            }
-          </div>
         </div>
+        {this.renderScore()}
       </div>
     );
   }

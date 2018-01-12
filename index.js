@@ -3,7 +3,7 @@ var http = require("http")
 var express = require("express")
 var app = express()
 var port = process.env.PORT || 5000
-const game = require('./game/GameEngine')();
+const game = require('./game/GameEngine')([{"trickCards":[4,0,10,20,30,5,31,21,1,11,24,9,39,26,37,18,6,22,19,25,7,32,36,27,2,28,3,34,13,33,29,35,15,14,12,38,16,17,8,23],"shuffle":[28,21,29,38,24,4,27,22,0,2,16,9,19,1,35,3,34,15,17,10,25,39,11,7,20,14,32,26,13,8,5,18,37,6,33,30,12,23,31,36],"bidActions":[4,"P","P","P","P"],"monkeySuit":2},{"trickCards":[22,11,13,10,30,3],"shuffle":[8,21,12,32,30,3,18,15,23,35,7,22,37,4,24,38,6,17,11,2,39,34,26,33,16,27,36,19,25,28,13,29,31,9,14,5,20,1,10,0],"bidActions":[4,"P","P","P","P"],"monkeySuit":3}]);
 const cli = require('./cli/main');
 const sockets = [];
 const playerSockets = [];
@@ -20,7 +20,8 @@ console.log("websocket server created")
 
 function broadcastGame(game) {
   playerSockets.forEach((ps, i) => ps.websocket.send(JSON.stringify({
-    game: serializeGame(game, i)
+    game: serializeGame(game, i),
+    seatIndex: i
   })));
 }
 
@@ -29,32 +30,8 @@ function displayCards(cards) {
 }
 
 function serializeGame(game, serializeForPlayerIndex) {
-  let {
-    rounds,
-    players,
-    trick,
-    lastTrick,
-    bid
-  } = game;
-  players = JSON.parse(JSON.stringify(players));
-  players = players.map(
-    (player, i) => i === serializeForPlayerIndex
-    ? {...player, isClient: true}
-    : {
-        ...player,
-        hand: player.hand && player.hand.map(card => ({})),
-        cards: player.cards && player.cards.map(card => ({}))
-      }
-  )
-  return {
-    rounds,
-    players,
-    trick,
-    lastTrick,
-    bid
-  };
+  return game.rounds;
 }
-game.initializePlayers();
 
 wss.on("connection", function(ws) {
   sockets.push(ws);
@@ -66,8 +43,8 @@ wss.on("connection", function(ws) {
   ws.on("message", function(event) {
     const message = JSON.parse(event);
     console.log(message);
+    const round = game.loadRound();
     if (message.messageType === 'initialize') {
-      console.log(playerSockets);
       const disconnectedSocket = playerSockets.find(
         ps => ps.socketKey === message.message && !ps.websocket
       );
@@ -78,6 +55,9 @@ wss.on("connection", function(ws) {
           playerIndex: playerSockets.indexOf(disconnectedSocket),
           socketKey: message.message
         }));
+        if (game.rounds.length) {
+          broadcastGame(game);
+        }
       } else if (playerSockets.length < 5) {
         const playerIndex = playerSockets.push({
           websocket: ws,
@@ -89,33 +69,32 @@ wss.on("connection", function(ws) {
           socketKey: playerSockets[playerIndex].socketKey
         }));
       }
-      if (playerSockets.length === 5 && !game.bid) {
-        game.initializeRound();
-        playerSockets.forEach(
-          (pws, i) => pws.websocket && pws.websocket.send(
-            JSON.stringify({game: serializeGame(game, i)})
-          )
-        );
+      if (playerSockets.length === 5) {
+        if (!game.rounds.length) {
+          game.initializeRound();
+        }
+        broadcastGame(game);
       }
       return;
     }
-    if (playerSockets.findIndex(ps => ps.websocket === ws) !== game.playerIndex) {
-      console.log('hola')
+    if (playerSockets.findIndex(ps => ps.websocket === ws) !== round.playerIndex) {
+      console.log('Not your turn.')
       return;
     }
     switch(message.messageType) {
       case 'bid':
         let bidAction = message.message;
-        bidAction = game.validateBidAction(bidAction);
         console.log(bidAction)
-        if (bidAction !== false) {
-          console.log('sup');
-          game.pushBidAction(bidAction);
+        if (game.pushBidAction(bidAction) !== false) {
           broadcastGame(game);
         }
         break;
       case 'throw':
-        if (game.pushTrickCard(message.message)) {
+        const updatedRound = game.pushTrickCard(message.message);
+        if (updatedRound !== false) {
+          if (updatedRound.isFinal) {
+            game.initializeRound();
+          }
           broadcastGame(game);
         }
         break;

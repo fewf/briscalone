@@ -2,7 +2,6 @@
 
 const shuffle = require('lodash/shuffle');
 const random = require('lodash/random');
-const sortBy = require('lodash/sortBy');
 const flatten = require('lodash/flatten');
 const dropRightWhile = require('lodash/dropRightWhile');
 
@@ -22,12 +21,14 @@ module.exports = (rounds = []) => ({
       roundData = this.roundData;
     }
     return {
-      ...roundData,
       // this counts on the chance of two decks shuffled identically
       // being infinitessimally small.
       roundFirstPlayerIndex: this.rounds.findIndex(
         rnd => JSON.stringify(rnd.shuffle) === JSON.stringify(roundData.shuffle)
       ) % 5,
+      get isFinal() {
+        return this.trickCards.length === this.shuffle.length;
+      },
       get bidRank() {
         if (!this.bidActions.length) {
           return Number.POSITIVE_INFINITY;
@@ -166,7 +167,6 @@ module.exports = (rounds = []) => ({
             : cardNum
           )
         );
-
         return this.playerHandsDealt.findIndex(
           hand => hand.indexOf(
             trick[cardValues.indexOf(Math.max(...cardValues))]
@@ -210,7 +210,8 @@ module.exports = (rounds = []) => ({
           rank: this.getRank(cardNum),
           cardNum
         };
-      }
+      },
+      ...roundData
     };
   },
 
