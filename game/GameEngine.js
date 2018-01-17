@@ -69,7 +69,7 @@ module.exports = (rounds = []) => ({
       get trick() {
         if (!this.bidIsFinal) {
           return undefined;
-        } else if (this.trickCards % 5 === 0) {
+        } else if (this.trickCards.length % 5 === 0) {
           return [];
         } else {
           return this.tricks[this.tricks.length - 1];
@@ -100,9 +100,8 @@ module.exports = (rounds = []) => ({
         if (isNaN(this.monkeySuit)) {
           return null;
         }
-        const partnerCardNum = this.monkeySuit * 10 + this.bidRank;
         return this.playerHandsDealt.findIndex(
-          hand => hand.indexOf(partnerCardNum) !== -1
+          hand => hand.indexOf(this.partnerCard) !== -1
         );
       },
 
@@ -119,9 +118,26 @@ module.exports = (rounds = []) => ({
         }
         return premodulo % 5;
       },
+      get nextAction() {
+        if (!this.bidIsFinal) {
+          return 'bid';
+        } else if (this.trickCards.length === 5 && isNaN(this.monkeySuit)) {
+          return 'monkey';
+        } else {
+          return 'throw';
+        }
+      },
 
       get bidderIsPartner() {
         return this.bidderIndex === this.partnerIndex;
+      },
+
+      get partnerIsRevealed() {
+        return this.trickCards.indexOf(this.partnerCard) !== -1;
+      },
+
+      get partnerCard() {
+        return this.monkeySuit * 10 + this.bidRank;
       },
 
       get bidTeamTricks() {
@@ -144,6 +160,9 @@ module.exports = (rounds = []) => ({
       get defendTeamPoints() {
         return this.getPointsForCards(flatten(this.defendTeamTricks));
       },
+      get ledSuit() {
+        return this.trick && this.getSuit(this.trick[0]);
+      },
       validateBidAction(bidAction) {
         const currentBidRank = this.bidRank;
         return (
@@ -162,7 +181,7 @@ module.exports = (rounds = []) => ({
           cardNum => (
             this.getSuit(cardNum) === this.monkeySuit
             ? 1000 + cardNum
-            : this.getSuit(cardNum) === leadingSuit
+            : this.getSuit(cardNum) === this.ledSuit
             ? 100 + cardNum
             : cardNum
           )
@@ -251,5 +270,254 @@ module.exports = (rounds = []) => ({
     }
     roundData.trickCards.push(trickCardNum)
     return this.loadRound(roundData);
+  },
+
+  // computer player functions
+
+  computerPlay() {
+    const round = this.loadRound();
+    const {nextAction} = round;
+    if (nextAction === 'bid') {
+      return this.computerBid(round);
+    } else if (nextAction === 'monkey') {
+      return this.computerMonkey(round);
+    } else {
+      return this.computerThrow(round);
+    }
+  },
+
+  computerThrow(round) {
+    const hand = round.playerHands[round.playerIndex];
+    if (isNaN(round.monkeySuit)) {
+      // avoid throwing monkey Suit if youre the bidder
+      const cardPool = (
+        round.playerIndex === round.bidderIndex
+        ? hand.filter(card => round.getSuit(card) !== this.computerMonkey(round))
+        : hand.filter(card => round.getRank(card) !== round.bidRank)
+      );
+      if (!cardPool.length) {
+        // case where bidder has only monkey suit cards
+        cardPool.concat(hand);
+      }
+      const cardRanks = cardPool.map(card => round.getRank(card));
+      return cardPool[cardRanks.indexOf(Math.min(...cardRanks))];
+    } else if (round.playerIndex === round.bidderIndex) {
+      return this.computerBidderThrow(round);
+    } else if (round.playerIndex === round.partnerIndex) {
+      return this.computerPartnerThrow(round);
+    } else {
+      return this.computerDefenderThrow(round);
+    }
+  },
+  computerAnalysis(round) {
+    const trickAnalysis = this.trickAnalysis(round);
+    const handAnalysis = this.handAnalysis(round);
+
+    const toThrows = trickAnalysis.filter(
+      trickThrow => isNaN(trickThrow.card)
+    ).map(trickThrow => trickThrow.isTeammate);
+    const weightedChanceTeammates = toThrows.reduce(
+      (avg, item, index, arr) => avg + (
+        (item / (arr.length * (arr.length + 1) / 2 -1)) * index
+      ),
+      0
+    );
+    return {
+      trick: trick.round,
+      throwerAnalysis: null
+    }
+  },
+  trickAnalysis(round) {
+    const {playerIndex} = round;
+    const throws = round.trick.length;
+    const throwerAnalysis = this.throwerAnalysis(round);
+    return [...Array(5).keys()].map(index => {
+      const card = round.trick[index];
+      const throwerIndex = (playerIndex + 5 - throws + index) % 5;
+      return {
+        card,
+        throwerIndex,
+        isTaking: round.resolveTrickWinner(round.trick) === throwerIndex,
+        isTeammate: throwerAnalysis[index]
+      }
+    });
+  },
+  getTrickCardValueFn(round) {
+    // no purpose in checking led suit if its the same as monkey
+    const ledSuit = (
+      round.getSuit(round.trick[0]) !== round.monkeySuit
+      ? round.getSuit(round.trick[0])
+      : undefined
+    )
+    return card => (
+      ((10 + (isNaN(ledSuit) ? 0 : 10)) * (round.getSuit(card) === round.monkeySuit)) +
+      (10 * (round.getSuit(card) === ledSuit)) +
+      round.getRank(card)
+    )
+  },
+  handAnalysis(round, trickAnalysis) {
+    const takingCard = trickAnalysis.find(ta => ta.isTaking);
+    const outstandingCards = [...Array(40).keys()].filter(
+      card => (
+        // card hasn't been played
+        round.trickCards.indexOf(card) === -1 &&
+        // player doesn't have card
+        round.playerHands[round.playerIndex].indexOf(card) === -1
+      )
+    );
+    return round.playerHands[round.playerIndex].map((card, i) => {
+      const cardValue = this.getTrickCardValueFn(
+        this.loadRound({
+          ...this.roundData,
+          trickCards: this.roundData.trickCards.concat([card])
+        })
+      )
+      const takingCardValue = cardValue(trickAnalysis.find(ta => ta.isTaking));
+      const takes = round.resolveTrickWinner(round.trick.concat([card])) === round.playerIndex;
+      const value = cardValue(card);
+
+      const outstandingTrickTakingCards = outstandingCards.filter(
+        outstandingCard => (
+          value < takingCardValue
+          ? cardValue(outstandingCard) > takingCardValue
+          : cardValue(outstandingCard) > value
+        )
+      );
+
+      return {
+        card,
+        value,
+        takes,
+        outstandingTrickTakingCards
+      }
+    });
+  },
+  throwerAnalysis(round) {
+    let ret;
+    if (round.playerIndex === round.bidderIndex) {
+      // bidder perspective
+      if (round.bidderIndex === round.partnerIndex) {
+        // bidder is own partner
+        ret = [...Array(5)].map(index => 0);
+      } else if (round.partnerIsRevealed) {
+        // partner is revealed
+        ret = [...Array(5).keys()].map(
+          index => Number(index === round.partnerIndex)
+        );
+      } else {
+        // uncertain
+        ret = [...Array(5).keys()].map(
+          index => 0.25
+        );
+      }
+    } else if (round.playerIndex === round.partnerIndex) {
+      // partner perspective
+      ret = [...Array(5).keys()].map(
+        index => Number(index === round.bidderIndex)
+      );
+    } else {
+      // defender perspective
+      if (round.partnerIsRevealed) {
+        // partner is revealed
+        ret = [...Array(5).keys()].map(
+          index => Number([round.partnerIndex, round.bidderIndex].indexOf(index) === -1)
+        );
+      } else {
+        // uncertain
+        ret = [...Array(5).keys()].map(
+          index => index === round.bidderIndex ? 0 : 1 / 3
+        )
+      }
+    }
+    ret[round.playerIndex] = 1;
+    return ret;
+  },
+  opponentTakesLast(round) {
+    if (round.trick.length === 4) {
+      return 0;
+    } else if (round.playerIndex === round.bidderIndex) {
+      return (
+        round.partnerIsRevealed
+        ? Number((round.playerIndex + 1) % 5 === round.partnerIndex)
+        : undefined
+      )
+    }
+  },
+  computerBidderThrow(round) {
+    if (round.partnerIsRevealed) {
+
+    } else {
+
+    }
+  },
+  computerPartnerThrow(round) {
+
+  },
+  computerDefenderThrow(round) {
+
+  },
+
+  computerMonkey(round) {
+    const hand = round.playerHands[round.playerIndex];
+    const strength = this.getHandStrength(hand);
+    return strength.suit;
+  },
+
+  computerBid(round) {
+    const {bidRank, bidPoints} = round;
+    const hand = round.playerHands[round.playerIndex];
+    const strength = this.getHandStrength(hand);
+    const lowest = this.getLowestBidRank(strength.strength);
+    let nextLowerBid = !round.bidActions.length ? 9 : bidRank - 1;
+    if (bidRank === 0) {
+      if (strength.strength > 10 && bidPoints < 75) {
+        return 'Y';
+      } else if (strength.strength > 11 && bidPoints < 90) {
+        return 'Y';
+      } else if (strength.strength > 12) {
+        return 'Y';
+      } else {
+        return 'P';
+      }
+    } else {
+      while (strength.strength < 10 && hand.indexOf(Number(`${strength.suit}${nextLowerBid}`)) !== -1) {
+        nextLowerBid = nextLowerBid - 1;
+      }
+      if (nextLowerBid < lowest) {
+        return 'P';
+      }
+      return nextLowerBid;
+    }
+
+  },
+
+  getHandStrength(hand) {
+    const round = this.loadRound();
+    const suitStrengths = [...Array(4).keys()].map(
+      suitNum => hand.filter(
+        card => round.getSuit(card) === suitNum
+      ).reduce(
+        (strength, card) => strength + Math.pow(round.getRank(card) + 1, 3),
+        0
+      )
+    );
+    // console.log(suitStrengths)
+    const bestSuit = suitStrengths.indexOf(Math.max(...suitStrengths));
+    // minimum of this routine is 54 (hence the subtraction) max is 9048
+    return {
+      strength: (suitStrengths.reduce(
+        (total, suitStrength, index) => total + (
+          index === bestSuit
+          ? suitStrength * 3
+          : suitStrength
+        ),
+        0
+      ) - 54) / 750,
+      suit: bestSuit
+    };
+  },
+  getLowestBidRank(strength) {
+    const ret = 10 - Math.round(strength);
+    return ret < 0 ? 0 : ret;
   }
 });
