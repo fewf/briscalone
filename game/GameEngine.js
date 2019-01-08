@@ -69,7 +69,7 @@ module.exports = (rounds = []) => ({
       get trick() {
         if (!this.bidIsFinal) {
           return undefined;
-        } else if (this.trickCards.length % 5 === 0) {
+        } else if (this.trickCards.length % 5 === 0 || isNaN(this.monkeySuit)) {
           return [];
         } else {
           return this.tricks[this.tricks.length - 1];

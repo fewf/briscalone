@@ -42,13 +42,19 @@ class BriscaloneApp extends React.Component {
     const host = location.origin.replace(/^http/, 'ws')
     const ws = new WebSocket(host);
     ws.onmessage = ({data}) => {
+      console.log('first message')
+      console.log(data)
       ws.send(JSON.stringify({
         messageType: 'initialize',
         message: window.localStorage.getItem('socketKey')
       }));
       ws.onmessage = ({data}) => {
+        console.log('second message');
+        console.log(data);
         this.initializeClient(JSON.parse(data));
         ws.onmessage = ({data}) => {
+          console.log('perpetual message');
+          console.log(data);
           const message = JSON.parse(data);
           this.setState({
             game: GameEngine(message.game),
@@ -128,9 +134,11 @@ class BriscaloneApp extends React.Component {
     const playerLastBid = round.bidActions.slice(Math.floor(round.bidActions.length/5) * 5)[(round.roundFirstPlayerIndex + index) % 5];
     console.log(round.bidActions.slice(Math.floor(round.bidActions.length/5) * 5))
     console.log((round.roundFirstPlayerIndex + index) % 5)
+    console.log(round)  
+    // debugger;
     return (
       <div
-        key={index}
+        key={index}bidAction
         style={{
           border: `2px solid ${isCurrentPlayer ? 'white' : 'black'}`,
           borderRadius: 5,
@@ -222,7 +230,7 @@ class BriscaloneApp extends React.Component {
                   }
                 </span>
               )
-            : round.trick && round.trick.length === 5 && isNaN(round.monkeySuit)
+            : round.nextAction === 'monkey'
             ? suitOrder.map((suit, i) => (
                   <span onClick={() => ws.send(JSON.stringify({messageType: 'monkey', message: i}))}>
                     {suit}
