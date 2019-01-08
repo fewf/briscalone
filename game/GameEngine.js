@@ -75,7 +75,7 @@ module.exports = (rounds = []) => ({
           return this.tricks[this.tricks.length - 1];
         }
       },
-      get lastTrick() {
+      get previousTrick() {
         if (isNaN(this.monkeySuit)) {
           return undefined;
         } else if (this.trickCards.length % 5 === 0) {
@@ -111,10 +111,10 @@ module.exports = (rounds = []) => ({
           premodulo = this.roundFirstPlayerIndex + this.bidActions.length;
         } else if (this.trickCards.length === 5 && isNaN(this.monkeySuit)) {
           premodulo = this.bidderIndex;
-        } else if (!this.lastTrick) {
+        } else if (!this.previousTrick) {
           premodulo = this.roundFirstPlayerIndex + this.trickCards.length;
         } else {
-          premodulo = this.resolveTrickWinner(this.lastTrick)  + this.trickCards.length;
+          premodulo = this.resolveTrickWinner(this.previousTrick)  + this.trickCards.length;
         }
         return premodulo % 5;
       },

@@ -17,9 +17,9 @@ const rankOrder = [
 ]
 
 const suitOrder = [
+  '♦',
   '♠',
   '♥',
-  '♦',
   '♣'
 ]
 class BriscaloneApp extends React.Component {

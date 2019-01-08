@@ -25,9 +25,9 @@ const cli = module.exports = {
   ],
 
   suitOrder: [
+    'D',
     'S',
     'H',
-    'D',
     'C'
   ],
 
