@@ -4,6 +4,12 @@ const shuffle = require('lodash/shuffle');
 const flatten = require('lodash/flatten');
 const dropRightWhile = require('lodash/dropRightWhile');
 
+const PASS_BID = 'P';
+const POINT_BID = 'Y';
+const BID = 'bid';
+const THROW = 'throw';
+const MONKEY = 'monkey';
+
 module.exports = (rounds = []) => ({
   rounds,
   initializeRound(roundData) {
@@ -36,16 +42,16 @@ module.exports = (rounds = []) => ({
         return onlyRanks[onlyRanks.length - 1];
       },
       get bidPoints() {
-        const onlyYs = this.bidActions.filter(ba => ba === 'Y');
-        return onlyYs.length * 2 + 61;
+        const onlyPointBids = this.bidActions.filter(ba => ba === POINT_BID);
+        return onlyPointBids.length * 2 + 61;
       },
       get bidIsFinal() {
         // bid is final if the points have been incremented to 119
         // or the last 4 bid actions are passes
-        return this.points === 119 || this.bidActions.slice(
+        return this.bidPoints === 119 || this.bidActions.slice(
           this.bidActions.length - 4,
           this.bidActions.length
-        ).filter(ba => ba === 'P').length === 4;
+        ).filter(ba => ba === PASS_BID).length === 4;
       },
       get playerHands() {
         const ret = this.playerHandsDealt.map(cards => cards.filter(
@@ -90,7 +96,7 @@ module.exports = (rounds = []) => ({
         }
         const ignoreEndPasses = dropRightWhile(
           this.bidActions,
-          ba => ba === 'P'
+          ba => ba === PASS_BID
         );
         return (this.roundFirstPlayerIndex + ignoreEndPasses.length - 1) % 5;
       },
@@ -119,11 +125,11 @@ module.exports = (rounds = []) => ({
       },
       get nextAction() {
         if (!this.bidIsFinal) {
-          return 'bid';
+          return BID;
         } else if (this.trickCards.length === 5 && isNaN(this.monkeySuit)) {
-          return 'monkey';
+          return MONKEY;
         } else {
-          return 'throw';
+          return THROW;
         }
       },
 
@@ -165,15 +171,15 @@ module.exports = (rounds = []) => ({
       validateBidAction(bidAction) {
         const currentBidRank = this.bidRank;
         return (
-          (this.bidActions.length && bidAction === 'P') ||
-          (currentBidRank === 0 && bidAction === 'Y') ||
+          (this.bidActions.length && bidAction === PASS_BID) ||
+          (currentBidRank === 0 && bidAction === POINT_BID) ||
           (bidAction > -1 && bidAction < currentBidRank)
         ) && bidAction;
       },
 
       resolveTrickWinner(trick) {
         if (isNaN(this.monkeySuit)) {
-          throw('Briscalone Error: cannot resolve trick winner before suit is set.');
+          return -1;
         }
         const leadingSuit = this.getSuit(trick[0]);
         const cardValues = trick.map(
@@ -236,10 +242,7 @@ module.exports = (rounds = []) => ({
   get roundData() {
     return this.rounds[this.rounds.length - 1];
   },
-  get score() {
-    let ret = Array(5).fill(0);
-  },
-  // card utils
+
   pushBidAction(bidAction) {
     const {roundData} = this;
     const round = this.loadRound(roundData);
