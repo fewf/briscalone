@@ -1,3 +1,8 @@
+const {
+  getPointsForCards,
+  getSuit
+} = require('./cardUtils');
+
 module.exports = game => {
   const round = game.loadRound();
   const {nextAction} = round;
@@ -16,14 +21,14 @@ function computerThrow(round) {
     // avoid throwing monkey Suit if youre the bidder
     const cardPool = (
       round.playerIndex === round.bidderIndex
-      ? hand.filter(card => round.getSuit(card) !== computerMonkey(round))
-      : hand.filter(card => round.getRank(card) !== round.bidRank)
+      ? hand.filter(card => getSuit(card) !== computerMonkey(round))
+      : hand.filter(card => getRank(card) !== round.bidRank)
     );
     if (!cardPool.length) {
       // case where bidder has only monkey suit cards
       cardPool.concat(hand);
     }
-    const cardRanks = cardPool.map(card => round.getRank(card));
+    const cardRanks = cardPool.map(card => getRank(card));
     return cardPool[cardRanks.indexOf(Math.min(...cardRanks))];
   } else if (round.playerIndex === round.bidderIndex) {
     return computerBidderThrow(round);
@@ -69,14 +74,14 @@ function trickAnalysis(round) {
 function getTrickCardValueFn(round) {
   // no purpose in checking led suit if its the same as monkey
   const ledSuit = (
-    round.getSuit(round.trick[0]) !== round.monkeySuit
-    ? round.getSuit(round.trick[0])
+    getSuit(round.trick[0]) !== round.monkeySuit
+    ? getSuit(round.trick[0])
     : undefined
   )
   return card => (
-    ((10 + (isNaN(ledSuit) ? 0 : 10)) * (round.getSuit(card) === round.monkeySuit)) +
-    (10 * (round.getSuit(card) === ledSuit)) +
-    round.getRank(card)
+    ((10 + (isNaN(ledSuit) ? 0 : 10)) * (getSuit(card) === round.monkeySuit)) +
+    (10 * (getSuit(card) === ledSuit)) +
+    getRank(card)
   )
 }
 function handAnalysis(round, trickAnalysis) {
@@ -216,9 +221,9 @@ function computerBid(round) {
 function getHandStrength(round, hand) {
   const suitStrengths = [...Array(4).keys()].map(
     suitNum => hand.filter(
-      card => round.getSuit(card) === suitNum
+      card => getSuit(card) === suitNum
     ).reduce(
-      (strength, card) => strength + Math.pow(round.getRank(card) + 1, 3),
+      (strength, card) => strength + Math.pow(getRank(card) + 1, 3),
       0
     )
   );

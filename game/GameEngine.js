@@ -1,5 +1,9 @@
 "use strict"
 
+const {
+  getPointsForCards,
+  getSuit
+} = require('./cardUtils');
 const shuffle = require('lodash/shuffle');
 const flatten = require('lodash/flatten');
 const dropRightWhile = require('lodash/dropRightWhile');
@@ -160,13 +164,13 @@ module.exports = (rounds = []) => ({
         );
       },
       get bidTeamPoints() {
-        return this.getPointsForCards(flatten(this.bidTeamTricks));
+        return getPointsForCards(flatten(this.bidTeamTricks));
       },
       get defendTeamPoints() {
-        return this.getPointsForCards(flatten(this.defendTeamTricks));
+        return getPointsForCards(flatten(this.defendTeamTricks));
       },
       get ledSuit() {
-        return this.trick && this.getSuit(this.trick[0]);
+        return this.trick && getSuit(this.trick[0]);
       },
       validateBidAction(bidAction) {
         const currentBidRank = this.bidRank;
@@ -181,12 +185,12 @@ module.exports = (rounds = []) => ({
         if (isNaN(this.monkeySuit)) {
           return -1;
         }
-        const leadingSuit = this.getSuit(trick[0]);
+        const leadingSuit = getSuit(trick[0]);
         const cardValues = trick.map(
           cardNum => (
-            this.getSuit(cardNum) === this.monkeySuit
+            getSuit(cardNum) === this.monkeySuit
             ? 1000 + cardNum
-            : this.getSuit(cardNum) === this.ledSuit
+            : getSuit(cardNum) === this.ledSuit
             ? 100 + cardNum
             : cardNum
           )
@@ -210,30 +214,6 @@ module.exports = (rounds = []) => ({
           ? this.bidderIsPartner ? 4 : 2
           : 1
         );
-      },
-
-      getPoints(cardNum) {
-        const rank = this.getRank(cardNum);
-        return rank < 5 ? 0 : [2, 3, 4, 10, 11][rank - 5];
-      },
-
-      getPointsForCards(cards) {
-        return cards.reduce((total, card) => total + this.getPoints(card), 0);
-      },
-      getSuit(cardNum) {
-        return Math.floor(cardNum / 10);
-      },
-
-      getRank(cardNum) {
-        return cardNum % 10;
-      },
-
-      getCard(cardNum) {
-        return {
-          suit: this.getSuit(cardNum),
-          rank: this.getRank(cardNum),
-          cardNum
-        };
       },
       ...roundData
     };

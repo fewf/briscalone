@@ -1,8 +1,9 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
+import Card from './components/Card';
+import {getRank, getSuit} from '../game/cardUtils';
 const sortBy = require('lodash/sortBy');
 const GameEngine = require('../game/GameEngine');
-const cardGlyphs = ['🂢', '🂣', '🂤', '🂥', '🂦', '🂫', '🂭', '🂮', '🂪', '🂡', '🂲', '🂳', '🂴', '🂵', '🂶', '🂻', '🂽', '🂾', '🂺', '🂱', '🃂', '🃃', '🃄', '🃅', '🃆', '🃋', '🃍', '🃎', '🃊', '🃁', '🃒', '🃓', '🃔', '🃕', '🃖', '🃛', '🃝', '🃞', '🃚', '🃑'];
 const rankOrder = [
   '2',
   '3',
@@ -36,6 +37,7 @@ class BriscaloneApp extends React.Component {
     }
     this.renderPlayer = this.renderPlayer.bind(this);
     this.renderScore = this.renderScore.bind(this);
+    this.renderTrick = this.renderTrick.bind(this);
     this.initializeClient = this.initializeClient.bind(this);
   }
   componentDidMount() {
@@ -132,6 +134,7 @@ class BriscaloneApp extends React.Component {
       ).playerIndex) % 5
     ]
     const playerLastBid = round.bidActions.slice(Math.floor(round.bidActions.length/5) * 5)[(round.roundFirstPlayerIndex + index) % 5];
+    const {nextAction} = round;
     console.log(round.bidActions.slice(Math.floor(round.bidActions.length/5) * 5))
     console.log((round.roundFirstPlayerIndex + index) % 5)
     console.log(round)  
@@ -160,33 +163,19 @@ class BriscaloneApp extends React.Component {
         }}>
         {
           !isNaN(playerCard)
-          ? (
-              <span
-                style={{
-                  color: [1, 2].indexOf(round.getSuit(playerCard)) !== -1 ? 'red' : 'white',
-                  fontSize: 35
-                }}
-              >
-                {cardGlyphs[playerCard]}
-              </span>
-            )
+          ? <Card card={playerCard} />
           : null
         }
         <p>Player {index + 1}</p>
         <p>
           {
-            sortBy(playerHand, [round.getSuit, round.getRank]).map(
+            sortBy(playerHand, [getSuit, getRank]).map(
               card => (
                 isSeatedPlayer
-                ? <span
+                ? <Card
+                    card={card}
                     onClick={() => ws.send(JSON.stringify({messageType: 'throw', message: card}))}
-                    style={{
-                      color: [1, 2].indexOf(round.getSuit(card)) !== -1 ? 'red' : 'white',
-                      fontSize: 45
-                    }}
-                  >
-                    {cardGlyphs[card]}
-                  </span>
+                  />
                 : '🂠 '
               )
             )
@@ -243,6 +232,12 @@ class BriscaloneApp extends React.Component {
       </div>
     );
   }
+
+  renderTrick() {
+    const {game} = this.state;
+    const round = game.loadRound();
+
+  }
   render() {
     const {game} = this.state;
 
@@ -260,6 +255,7 @@ class BriscaloneApp extends React.Component {
             )
           }
         </div>
+        {this.renderTrick()}
         {this.renderScore()}
       </div>
     );
