@@ -119,14 +119,20 @@ module.exports = (rounds = []) => ({
         let premodulo;
         if (!this.bidIsFinal) {
           premodulo = this.roundFirstPlayerIndex + this.bidActions.length;
-        } else if (this.trickCards.length === 5 && isNaN(this.monkeySuit)) {
+        } else if (this.nextAction == MONKEY) {
           premodulo = this.bidderIndex;
-        } else if (!this.previousTrick) {
-          premodulo = this.roundFirstPlayerIndex + this.trickCards.length;
         } else {
-          premodulo = this.resolveTrickWinner(this.previousTrick) + this.trickCards.length;
+          premodulo = this.trickFirstPlayer + this.trickCards.length;
         }
         return premodulo % 5;
+      },
+
+      get trickFirstPlayer() {
+        if (!this.previousTrick) {
+          return this.roundFirstPlayerIndex;
+        } else {
+          return this.resolveTrickWinner(this.previousTrick);
+        }
       },
       get nextAction() {
         if (!this.bidIsFinal) {

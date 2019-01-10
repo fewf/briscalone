@@ -117,7 +117,8 @@ class BriscaloneApp extends React.Component {
         }
       ).playerIndex) % 5
     ]
-    const playerLastBid = round.bidActions.slice(Math.floor(round.bidActions.length/5) * 5)[(round.roundFirstPlayerIndex + index) % 5];
+
+    const playerLastBid = round.bidActions.filter((ba, i) => (i + round.roundFirstPlayerIndex) % 5 === index).pop()
     const {nextAction} = round;
 
     return (
@@ -238,6 +239,7 @@ class BriscaloneApp extends React.Component {
         </div>
         {this.renderTrick()}
         {this.renderScore()}
+        <p>bid rank is {rankOrder[round.bidRank]}</p>
       </div>
     );
   }
