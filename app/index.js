@@ -69,19 +69,8 @@ class BriscaloneApp extends React.Component {
   }
   renderScore() {
     const {game} = this.state;
-    const roundScores = game.rounds.filter(
-      roundData => game.loadRound(roundData).isFinal
-    ).map(
-      roundData => {
-        const round = game.loadRound(roundData);
-        return round.playerHands.map(
-          (hand, i) => round.scorePlayer(
-            i,
-            round.bidTeamPoints >= round.bidPoints
-          )
-        )
-      }
-    )
+    const {gameScore, roundScores} = game;
+    console.log(roundScores)
     return <table><tbody>
       {
         roundScores.map(
@@ -98,12 +87,7 @@ class BriscaloneApp extends React.Component {
       }
       <tr>
         {
-          [...Array(5).keys()].map(idx =>
-            [...Array(roundScores.length).keys()].reduce(
-              (sum, idx2) => sum + roundScores[idx2][idx],
-              0
-            )
-          ).map((total, i) => <td>{total}</td>)
+          gameScore.map((total, i) => <td>{total}</td>)
         }
       </tr>
     </tbody></table>
@@ -135,13 +119,10 @@ class BriscaloneApp extends React.Component {
     ]
     const playerLastBid = round.bidActions.slice(Math.floor(round.bidActions.length/5) * 5)[(round.roundFirstPlayerIndex + index) % 5];
     const {nextAction} = round;
-    console.log(round.bidActions.slice(Math.floor(round.bidActions.length/5) * 5))
-    console.log((round.roundFirstPlayerIndex + index) % 5)
-    console.log(round)  
-    // debugger;
+
     return (
       <div
-        key={index}bidAction
+        key={index}
         style={{
           border: `2px solid ${isCurrentPlayer ? 'white' : 'black'}`,
           borderRadius: 5,

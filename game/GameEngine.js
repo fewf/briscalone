@@ -7,6 +7,7 @@ const {
 const shuffle = require('lodash/shuffle');
 const flatten = require('lodash/flatten');
 const dropRightWhile = require('lodash/dropRightWhile');
+const range = require('lodash/range');
 
 const PASS_BID = 'P';
 const POINT_BID = 'Y';
@@ -123,7 +124,7 @@ module.exports = (rounds = []) => ({
         } else if (!this.previousTrick) {
           premodulo = this.roundFirstPlayerIndex + this.trickCards.length;
         } else {
-          premodulo = this.resolveTrickWinner(this.previousTrick)  + this.trickCards.length;
+          premodulo = this.resolveTrickWinner(this.previousTrick) + this.trickCards.length;
         }
         return premodulo % 5;
       },
@@ -172,6 +173,19 @@ module.exports = (rounds = []) => ({
       get ledSuit() {
         return this.trick && getSuit(this.trick[0]);
       },
+      get bidTeamWins() {
+        if (!this.isFinal) {
+          return null;
+        }
+        return this.bidTeamPoints >= this.bidPoints;
+      },
+      get roundScore() {
+        if (!this.isFinal) {
+          return [0, 0, 0, 0, 0];
+        }
+
+        return range(5).map(playerIndex => this.scorePlayer(playerIndex));
+      },
       validateBidAction(bidAction) {
         const currentBidRank = this.bidRank;
         return (
@@ -204,9 +218,9 @@ module.exports = (rounds = []) => ({
       isBidTeam(playerIndex) {
         return [this.bidderIndex, this.partnerIndex].indexOf(playerIndex) !== -1;
       },
-      scorePlayer(playerIndex, bidTeamWins) {
+      scorePlayer(playerIndex) {
         return (
-          this.isBidTeam(playerIndex) === bidTeamWins
+          this.isBidTeam(playerIndex) === this.bidTeamWins
           ? 1
           : -1
         ) * (
@@ -223,6 +237,25 @@ module.exports = (rounds = []) => ({
     return this.rounds[this.rounds.length - 1];
   },
 
+  get roundScores() {
+    return this.rounds.map(
+      roundData => {
+        const round = this.loadRound(roundData);
+        return round.roundScore;
+      }
+    );
+  },
+
+  get gameScore() {
+    const {roundScores} = this;
+    return [...Array(5).keys()].map(idx =>
+      [...Array(roundScores.length).keys()].reduce(
+        (sum, idx2) => sum + roundScores[idx2][idx],
+        0
+      )
+    )
+  },
+  // state changers
   pushBidAction(bidAction) {
     const {roundData} = this;
     const round = this.loadRound(roundData);
@@ -233,7 +266,6 @@ module.exports = (rounds = []) => ({
       return false;
     }
   },
-
 
   setSuit(suit) {
     const {roundData} = this;
