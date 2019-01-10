@@ -9,17 +9,16 @@ const cardGlyphs = [
 
 class Card extends React.Component {
 	render() {
-		const {card} = this.props;
+		const {card, onClick} = this.props;
 		return (
-			<span>
-				<span
-					style={{
-						color: getSuit(card) % 2 ? 'white' : 'red',
-						fontSize: 35
-					}}
-				>
-					{cardGlyphs[card])}
-				</span>
+			<span
+				style={{
+					color: getSuit(card) % 2 ? 'white' : 'red',
+					fontSize: 35
+				}}
+				onClick={onClick}
+			>
+				{cardGlyphs[card]}
 			</span>
 		);
 	}
