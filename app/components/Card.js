@@ -6,19 +6,34 @@ const cardGlyphs = [
 	'🂲', '🂳', '🂴', '🂵', '🂶', '🂻', '🂽', '🂾', '🂺', '🂱',
 	'🃒', '🃓', '🃔', '🃕', '🃖', '🃛', '🃝', '🃞', '🃚', '🃑'
 ];
+const num2fileName = num => `${[
+	'2',
+	'3',
+	'4',
+	'5',
+	'6',
+	'jack',
+	'queen',
+	'king',
+	'10',
+	'ace'
+][num % 10]}_of_${[
+	'diamonds',
+	'spades',
+	'hearts',
+	'clubs'
+][getSuit(num)]}${[5, 6, 7].indexOf(num % 10) !== -1 ? '2' : ''}.svg`;
+
 
 class Card extends React.Component {
 	render() {
-		const {card, onClick} = this.props;
+		const {card, style, onClick} = this.props;
+		if (isNaN(card)) return null;
 		return (
 			<span
-				style={{
-					color: getSuit(card) % 2 ? 'white' : 'red',
-					fontSize: 35
-				}}
 				onClick={onClick}
 			>
-				{cardGlyphs[card]}
+				<img style={style} src={`./images/${num2fileName(card)}`} />
 			</span>
 		);
 	}

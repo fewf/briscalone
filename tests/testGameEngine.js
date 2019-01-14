@@ -75,6 +75,7 @@ assertTrue(round.bidPoints === 67);
 assertTrue(round.bidderIndex === 4);
 assertTrue(round.partnerIndex === null);
 assertTrue(round.playerIndex === 0);
+assertTrue(round.trick.length === 0)
 
 assertTrue(game.pushTrickCard(1))
 assertTrue(!game.pushTrickCard(39))
@@ -85,9 +86,12 @@ assertTrue(JSON.stringify(round.trick) === JSON.stringify([1, 11]))
 
 assertTrue(game.pushTrickCard(21));
 assertTrue(game.pushTrickCard(31));
+assertTrue(round.trick.length === 4)
 assertTrue(game.pushTrickCard(32));
 assertTrue(round.playerIndex === 4);
+assertTrue(round.trick.length === 5)
 round = game.setSuit(3);
+assertTrue(round.trick.length === 0)
 assertTrue(round);
 assertTrue(round.resolveTrickWinner(round.tricks[0]) === 4);
 assertTrue(round.playerIndex === 4);

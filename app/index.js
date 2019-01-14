@@ -72,6 +72,13 @@ class BriscaloneApp extends React.Component {
     const {gameScore, roundScores} = game;
     console.log(roundScores)
     return <table><tbody>
+      <tr>
+        <th>1</th>
+        <th>2</th>
+        <th>3</th>
+        <th>4</th>
+        <th>5</th>
+      </tr>
       {
         roundScores.map(
           (scores, i) => (
@@ -107,17 +114,10 @@ class BriscaloneApp extends React.Component {
     const isCurrentPlayer = round.playerIndex === index;
     const isSeatedPlayer = seatIndex === index;
     const offset = (index + 5 - seatIndex) % 5;
-    const playerCard = round.trick && round.trick[
-      (index + 5 - game.loadRound(
-        {
-          ...game.roundData,
-          trickCards: round.trickCards.slice(
-            0, Math.floor(round.trickCards.length/5) * 5
-          )
-        }
-      ).playerIndex) % 5
-    ]
-
+    const trick = round.trick;
+    const playerCard = trick && trick.filter((ba, i) => (i + round.trickFirstPlayerIndex) % 5 === index).pop()
+    console.log(round.trickCards.filter((ba, i) => (i + round.roundFirstPlayerIndex) % 5 === index).pop())
+    console.log(index)
     const playerLastBid = round.bidActions.filter((ba, i) => (i + round.roundFirstPlayerIndex) % 5 === index).pop()
     const {nextAction} = round;
 
@@ -125,22 +125,24 @@ class BriscaloneApp extends React.Component {
       <div
         key={index}
         style={{
-          border: `2px solid ${isCurrentPlayer ? 'white' : 'black'}`,
+          border: `2px solid ${isCurrentPlayer ? 'black' : 'lightgray'}`,
           borderRadius: 5,
           position: 'absolute',
+          width: offset === 0 ? '100%' : '50%',
+          minHeight: '30%',
           top: [
-            '56%',
-            '28%',
+            '60%',
+            '30%',
             '0%',
             '0%',
-            '28%'
+            '30%'
           ][offset],
           left: [
-            '28%',
             '0%',
-            '15%',
-            '65%',
-            '80%'
+            '0%',
+            '0%',
+            '50%',
+            '50%'
           ][offset]
         }}>
         {
@@ -149,68 +151,92 @@ class BriscaloneApp extends React.Component {
           : null
         }
         <p>Player {index + 1}</p>
-        <p>
-          {
-            sortBy(playerHand, [getSuit, getRank]).map(
-              card => (
-                isSeatedPlayer
-                ? <Card
-                    card={card}
-                    onClick={() => ws.send(JSON.stringify({messageType: 'throw', message: card}))}
-                  />
-                : '🂠 '
+        {
+          index === round.bidderIndex
+          ? <p>Player {round.bidIsFinal ? 'won' : 'is winning'} the bid</p>
+          : round.partnerIsRevealed && index === round.partnerIndex
+          ? <p>Player is bidder's partner</p>
+          : null
+        }
+        <p>Player has taken {round.playerTricks(index).length} tricks worth {round.playerPointsTaken(index)} points</p>
+        {
+          isSeatedPlayer
+          ? (
+              <div>
+                {sortBy(playerHand, [getSuit, getRank]).map(
+                  card => (
+                    isSeatedPlayer
+                    ? <Card
+                        style={{width: '12%'}}
+                        card={card}
+                        onClick={() => ws.send(JSON.stringify({messageType: 'throw', message: card}))}
+                      />
+                    : '🂠 '
+                  )
+                )}
+              </div>
+            )
+          : null
+        }
+        {
+          !round.bidIsFinal
+          ? <p>
+              Last bid: {
+                rankOrder[playerLastBid]
+                ? rankOrder[playerLastBid]
+                : playerLastBid === 'P' ? 'Passed'
+                : playerLastBid === 'Y' ? `2 and ${round.bidPoints} points`
+                : null
+              }. {
+                round.bidderIndex === index ? 'Player is current high bidder' : null
+              }
+            </p>
+          : null
+        }
+        {
+          !isSeatedPlayer || !isCurrentPlayer
+          ? null
+          : !round.bidIsFinal
+          ? (
+              <span>
+                <button
+                  style={{margin: 10, fontSize: 24}}
+                  onClick={() => ws.send(JSON.stringify({messageType: 'bid', message: 'P'}))}
+                >
+                  Pass
+                </button>
+                {
+                  round.bidRank === 0
+                  ? <button
+                      style={{margin: 10, fontSize: 24}}
+                      onClick={() => ws.send(JSON.stringify({messageType: 'bid', message: 'Y'}))}
+                    >
+                      2 and {round.bidPoints + 2} points
+                    </button>
+                  : rankOrder.filter((x, i) => i < round.bidRank).map(
+                      (rank, i) => (
+                        <button
+                          style={{margin: 10, fontSize: 24}}
+                          key={i}
+                          disabled={false}
+                          onClick={() => ws.send(JSON.stringify({messageType: 'bid', message: i}))}
+                        >
+                          {rank}
+                        </button>
+                      )
+                    )
+                }
+              </span>
+            )
+          : round.nextAction === 'monkey'
+          ? suitOrder.map((suit, i) => (
+                <button style={{padding: '5%', color: i % 1 ? 'red' : 'black'}} onClick={() => ws.send(JSON.stringify({messageType: 'monkey', message: i}))}>
+                  {suit}
+                </button>
               )
             )
-          }
-        </p>
-        <p>
-          {
-            !round.bidIsFinal
-            ? <p>Last bid: {rankOrder[playerLastBid] ? rankOrder[playerLastBid] : playerLastBid}</p>
-            : null
-          }
-          {
-            !isSeatedPlayer || !isCurrentPlayer
-            ? null
-            : !round.bidIsFinal
-            ? (
-                <span>
-                  <button
-                    onClick={() => ws.send(JSON.stringify({messageType: 'bid', message: 'P'}))}
-                  >
-                    Pass
-                  </button>
-                  {
-                    round.bidRank === 0
-                    ? <button
-                        onClick={() => ws.send(JSON.stringify({messageType: 'bid', message: 'Y'}))}
-                      >
-                        2 and {round.bidPoints + 2} points
-                      </button>
-                    : rankOrder.map(
-                        (rank, i) => (
-                          <button
-                            key={i}
-                            disabled={false}
-                            onClick={() => ws.send(JSON.stringify({messageType: 'bid', message: i}))}
-                          >
-                            {rank}
-                          </button>
-                        )
-                      )
-                  }
-                </span>
-              )
-            : round.nextAction === 'monkey'
-            ? suitOrder.map((suit, i) => (
-                  <span onClick={() => ws.send(JSON.stringify({messageType: 'monkey', message: i}))}>
-                    {suit}
-                  </span>
-                )
-              )
-            : null
-          }
-        </p>
+          : null
+        }
       </div>
     );
   }
@@ -228,9 +254,12 @@ class BriscaloneApp extends React.Component {
       return <div><h1>Waiting for more players</h1><button onClick={() => window.localStorage.clear()}>clear ls</button></div>
     }
     const round = game.loadRound();
+    console.log('partner card')
+    console.log(round.monkeySuit)
+    console.log(round.bidRank)
     return (
-      <div>
-        <div style={{position: 'relative', width: '100%', height: '100%'}}>
+      <div style={{position: 'relative', width: '100%', height: '100%'}}>
+        <div>
           {
             round.playerHands && round.playerHands.map(
               this.renderPlayer
@@ -238,8 +267,9 @@ class BriscaloneApp extends React.Component {
           }
         </div>
         {this.renderTrick()}
-        {this.renderScore()}
-        <p>bid rank is {rankOrder[round.bidRank]}</p>
+        <div style={{position: 'absolute', top: '90%'}}>
+          {this.renderScore()}
+        </div>
       </div>
     );
   }

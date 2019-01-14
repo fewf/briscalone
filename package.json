@@ -18,7 +18,7 @@
     "prompt-sync": "^4.1.5",
     "react": "^16.2.0",
     "react-dom": ">=16.2.1",
-    "ws": "^3.3.3"
+    "ws": "^6.1.2"
   },
   "devDependencies": {
     "babel-core": "^6.26.3",

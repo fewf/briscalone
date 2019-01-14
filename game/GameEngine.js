@@ -70,35 +70,29 @@ module.exports = (rounds = []) => ({
       },
       get tricks() {
         const ret = [];
+        if (!this.bidIsFinal) return ret;
         const copy = [...this.trickCards];
         while (copy.length) {
           ret.push(copy.splice(0, 5));
         }
+        // initialize empty trick if conditions right
+        if (!ret[0] || (ret[0].length === 5 && this.monkeySuit)) ret.push([]);
         return ret;
       },
       get trick() {
-        if (!this.bidIsFinal) {
-          return undefined;
-        } else if (this.trickCards.length % 5 === 0 || isNaN(this.monkeySuit)) {
-          return [];
-        } else {
-          return this.tricks[this.tricks.length - 1];
-        }
+        return this.tricks.pop();
       },
       get previousTrick() {
         if (isNaN(this.monkeySuit)) {
           return undefined;
-        } else if (this.trickCards.length % 5 === 0) {
-          return this.tricks[this.tricks.length - 1];
         } else {
           return this.tricks[this.tricks.length - 2];
         }
       },
       // index position of bidder in this.players
+
       get bidderIndex() {
-        if (!this.bidIsFinal) {
-          return null;
-        }
+        if (!this.bidActions.length) return null;
         const ignoreEndPasses = dropRightWhile(
           this.bidActions,
           ba => ba === PASS_BID
@@ -122,12 +116,12 @@ module.exports = (rounds = []) => ({
         } else if (this.nextAction == MONKEY) {
           premodulo = this.bidderIndex;
         } else {
-          premodulo = this.trickFirstPlayer + this.trickCards.length;
+          premodulo = this.trickFirstPlayerIndex + this.trickCards.length;
         }
         return premodulo % 5;
       },
 
-      get trickFirstPlayer() {
+      get trickFirstPlayerIndex() {
         if (!this.previousTrick) {
           return this.roundFirstPlayerIndex;
         } else {
@@ -191,6 +185,14 @@ module.exports = (rounds = []) => ({
         }
 
         return range(5).map(playerIndex => this.scorePlayer(playerIndex));
+      },
+      playerTricks(playerIndex) {
+        return this.tricks.filter(
+          trick => trick.length === 5 && this.resolveTrickWinner(trick) === playerIndex
+        )
+      },
+      playerPointsTaken(playerIndex) {
+        return getPointsForCards(flatten(this.playerTricks(playerIndex)));
       },
       validateBidAction(bidAction) {
         const currentBidRank = this.bidRank;
