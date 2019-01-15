@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom';
 import Card from './components/Card';
 import {getRank, getSuit} from '../game/cardUtils';
 const sortBy = require('lodash/sortBy');
+const range = require('lodash/range');
 const GameEngine = require('../game/GameEngine');
 const rankOrder = [
   '2',
@@ -120,7 +121,8 @@ class BriscaloneApp extends React.Component {
     console.log(index)
     const playerLastBid = round.bidActions.filter((ba, i) => (i + round.roundFirstPlayerIndex) % 5 === index).pop()
     const {nextAction} = round;
-
+    const isTopPlayer = offset === 2 || offset === 3;
+    const isMiddlePlayer = !isTopPlayer && !isSeatedPlayer;
     return (
       <div
         key={index}
@@ -128,37 +130,30 @@ class BriscaloneApp extends React.Component {
           border: `2px solid ${isCurrentPlayer ? 'black' : 'lightgray'}`,
           borderRadius: 5,
           position: 'absolute',
-          width: offset === 0 ? '100%' : '50%',
-          minHeight: '30%',
+          width: isSeatedPlayer ? '100%' : isTopPlayer ?  '50%' : '15%',
+          height: isTopPlayer ? '10%' : '35%',
           top: [
-            '60%',
-            '30%',
+            '45%',
+            '10%',
             '0%',
             '0%',
-            '30%'
+            '10%'
           ][offset],
           left: [
             '0%',
             '0%',
             '0%',
             '50%',
-            '50%'
+            '85%'
           ][offset]
         }}>
-        {
-          !isNaN(playerCard)
-          ? <Card card={playerCard} />
-          : null
-        }
-        <p>Player {index + 1}</p>
-        {
-          index === round.bidderIndex
-          ? <p>Player {round.bidIsFinal ? 'won' : 'is winning'} the bid</p>
-          : round.partnerIsRevealed && index === round.partnerIndex
-          ? <p>Player is bidder's partner</p>
-          : null
-        }
-        <p>Player has taken {round.playerTricks(index).length} tricks worth {round.playerPointsTaken(index)} points</p>
+        <div style={offset === 1 || offset === 4 ? {writingMode: 'vertical-lr', float: offset === 4 ? 'right' : null} : null}>
+          <p>Player {index + 1}{index === round.bidderIndex ? <span style={{fontWeight: 'bold'}}> • bid winner</span> : null}</p>
+          <p>
+            TRICKS: {round.playerTricks(index).length} •
+            POINTS: {round.playerPointsTaken(index)}
+          </p>
+        </div>
         {
           isSeatedPlayer
           ? (
@@ -176,21 +171,6 @@ class BriscaloneApp extends React.Component {
                 )}
               </div>
             )
-          : null
-        }
-        {
-          !round.bidIsFinal
-          ? <p>
-              Last bid: {
-                rankOrder[playerLastBid]
-                ? rankOrder[playerLastBid]
-                : playerLastBid === 'P' ? 'Passed'
-                : playerLastBid === 'Y' ? `2 and ${round.bidPoints} points`
-                : null
-              }. {
-                round.bidderIndex === index ? 'Player is current high bidder' : null
-              }
-            </p>
           : null
         }
         {
@@ -240,10 +220,79 @@ class BriscaloneApp extends React.Component {
       </div>
     );
   }
+  renderBid() {
+    const {game, seatIndex} = this.state;
+    const round = game.loadRound();
+    return (
+      <div style={{position: 'relative', left: '15%', top: '10%', width: '70%', height: '35%'}}>
+        {
+          range(5).map(
+            index => {
+              const offset = (index + 5 - seatIndex) % 5;
+              const playerLastBid = round.bidActions.filter((ba, i) => (i + round.roundFirstPlayerIndex) % 5 === index).pop()
+              console.log(playerLastBid)
+              return (
+
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: [null, '40%', '5%', '5%', '40%'][offset],
+                    bottom: offset === 0 ? '0%' : null,
+                    left: ['35%', '8%', '15%', null, null][offset],
+                    right: [null, null, null, '15%', '8%'][offset],
+                    fontWeight: round.bidderIndex === index ? 'bold' : null
+                  }}
+                >
+                  {
+                    playerLastBid === 'undefined'
+                    ? null
+                    : playerLastBid === 'P'
+                    ? 'I pass'
+                    : playerLastBid === 'Y'
+                    ? `I bid 2 and ${round.bidPoints} points.`
+                    : `I bid ${rankOrder[playerLastBid]}`
+                  }
+                </span>
+              )
+            }
+          )
+        }
+      </div>
+    )
+  }
 
   renderTrick() {
-    const {game} = this.state;
+    const {game, seatIndex} = this.state;
     const round = game.loadRound();
+    const trick = round.trick;
+    return (
+      <div style={{position: 'relative', left: '15%', top: '10%', width: '70%', height: '35%'}}>
+        {
+          range(5).map(
+            index => {
+              const offset = (index + 5 - seatIndex) % 5;
+              const playerCard = trick && trick.filter((ba, i) => (i + round.trickFirstPlayerIndex) % 5 === index).pop()
+              return isNaN(playerCard) ? null : (
+                <Card
+                  card={playerCard}
+                  style={{
+                    position: 'absolute',
+                    top: [null, '40%', '5%', '5%', '40%'][offset],
+                    bottom: offset === 0 ? '0%' : null,
+                    left: ['35%', '8%', '15%', null, null][offset],
+                    right: [null, null, null, '15%', '8%'][offset],
+                    height: '40%',
+                    transform: `rotate(${['0', '-90', '-35', '35', '90'][offset]}deg)`
+                  }}
+                />
+              )
+            }
+          )
+        }
+      </div>
+    )
+
+
 
   }
   render() {
@@ -266,7 +315,7 @@ class BriscaloneApp extends React.Component {
             )
           }
         </div>
-        {this.renderTrick()}
+        {round.bidIsFinal ? this.renderTrick() : this.renderBid()}
         <div style={{position: 'absolute', top: '90%'}}>
           {this.renderScore()}
         </div>

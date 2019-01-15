@@ -76,7 +76,7 @@ module.exports = (rounds = []) => ({
           ret.push(copy.splice(0, 5));
         }
         // initialize empty trick if conditions right
-        if (!ret[0] || (ret[0].length === 5 && this.monkeySuit)) ret.push([]);
+        if (!ret[0] || (ret[ret.length - 1].length === 5 && this.monkeySuit)) ret.push([]);
         return ret;
       },
       get trick() {
