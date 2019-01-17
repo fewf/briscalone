@@ -6,6 +6,7 @@ const port = process.env.PORT || 5000
 
 const game = require('./game/GameEngine')();
 const playerSockets = [];
+const chatMessages = [];
 
 app.use(express.static(__dirname + "/"))
 
@@ -32,7 +33,7 @@ function reconnectSocket(disconnectedSocket, newSocket, socketKey) {
   disconnectedSocket.websocket = newSocket;
   console.log('reseating player ' + playerSockets.indexOf(disconnectedSocket))
   newSocket.send(JSON.stringify({
-    playerIndex: playerSockets.indexOf(disconnectedSocket),
+    seatIndex: playerSockets.indexOf(disconnectedSocket),
     socketKey
   }));
   if (game.rounds.length) {
@@ -41,14 +42,14 @@ function reconnectSocket(disconnectedSocket, newSocket, socketKey) {
 }
 
 function addPlayerSocket(ws) {
-  const playerIndex = playerSockets.push({
+  const seatIndex = playerSockets.push({
     websocket: ws,
     socketKey: Math.random().toString(36).substring(6)
   }) - 1;
   console.log(`player ${playerSockets.length} joined`);
   ws.send(JSON.stringify({
-    playerIndex,
-    socketKey: playerSockets[playerIndex].socketKey
+    seatIndex,
+    socketKey: playerSockets[seatIndex].socketKey
   }));
 }
 function initializeSocket(ws, socketKey) {
@@ -114,6 +115,26 @@ function handleGamePlay(ws, message) {
   console.log(newRound.nextAction);
 }
 
+function setUsername(ws, username) {
+
+  const socket = playerSockets.find(ps => ps.websocket === ws);
+  socket.username = username;
+
+  playerSockets.forEach((ps, i) => ps.websocket.send(JSON.stringify({
+    usernames: playerSockets.map(pss => pss.username),
+    chatMessages
+  })));
+}
+
+function pushChatMessage(message) {
+
+  chatMessages.push(message);
+
+  playerSockets.forEach(ps => ps.websocket.send(JSON.stringify({
+    chatMessages
+  })));
+}
+
 wss.on("connection", function(ws) {
   ws.send('echo');
 
@@ -124,6 +145,10 @@ wss.on("connection", function(ws) {
     console.log(message);
     if (message.messageType === 'initialize') {
       initializeSocket(ws, message.message);
+    } else if (message.messageType === 'username') {
+      setUsername(ws, message.message);
+    } else if (message.messageType === 'chat') {
+      pushChatMessage(message.message);
     } else {
       handleGamePlay(ws, message);
     }

@@ -170,9 +170,6 @@ module.exports = (rounds = []) => ({
       get defendTeamPoints() {
         return getPointsForCards(flatten(this.defendTeamTricks));
       },
-      get ledSuit() {
-        return this.trick && getSuit(this.trick[0]);
-      },
       get bidTeamWins() {
         if (!this.isFinal) {
           return null;
@@ -185,6 +182,10 @@ module.exports = (rounds = []) => ({
         }
 
         return range(5).map(playerIndex => this.scorePlayer(playerIndex));
+      },
+
+      ledSuit(trick) {
+        return getSuit(trick[0]);
       },
       playerTricks(playerIndex) {
         return this.tricks.filter(
@@ -212,11 +213,12 @@ module.exports = (rounds = []) => ({
           cardNum => (
             getSuit(cardNum) === this.monkeySuit
             ? 1000 + cardNum
-            : getSuit(cardNum) === this.ledSuit
+            : getSuit(cardNum) === this.ledSuit(trick)
             ? 100 + cardNum
             : cardNum
           )
         );
+        console.log(cardValues);
         return this.playerHandsDealt.findIndex(
           hand => hand.indexOf(
             trick[cardValues.indexOf(Math.max(...cardValues))]

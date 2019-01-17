@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
+import { ChatFeed, Message } from 'react-chat-ui';
 import Card from './components/Card';
 import {getRank, getSuit} from '../game/cardUtils';
 const sortBy = require('lodash/sortBy');
@@ -33,7 +34,9 @@ class BriscaloneApp extends React.Component {
       this.state.game = GameEngine(this.state.game.rounds);
     } else {
       this.state = {
-        game: GameEngine()
+        game: GameEngine(),
+        usernames: [],
+        chatMessages: []
       };
     }
     this.renderPlayer = this.renderPlayer.bind(this);
@@ -59,10 +62,10 @@ class BriscaloneApp extends React.Component {
           console.log('perpetual message');
           console.log(data);
           const message = JSON.parse(data);
-          this.setState({
-            game: GameEngine(message.game),
-            seatIndex: message.seatIndex
-          });
+          if (message.game) message.game = GameEngine(message.game);
+          if (message.chatMessages) message.chatMessages = message.chatMessages.map(cm => new Message(cm));
+          console.log(message);
+          this.setState(message);
         };
       }
     }
@@ -72,14 +75,12 @@ class BriscaloneApp extends React.Component {
     const {game} = this.state;
     const {gameScore, roundScores} = game;
     console.log(roundScores)
-    return <table><tbody>
-      <tr>
-        <th>1</th>
-        <th>2</th>
-        <th>3</th>
-        <th>4</th>
-        <th>5</th>
-      </tr>
+    return <div width={'100%'}>
+      <div style={{display: 'inline-block', width: '20%'}}>1</div>
+      <div style={{display: 'inline-block', width: '20%'}}>2</div>
+      <div style={{display: 'inline-block', width: '20%'}}>3</div>
+      <div style={{display: 'inline-block', width: '20%'}}>4</div>
+      <div style={{display: 'inline-block', width: '20%'}}>5</div>
       {
         roundScores.map(
           (scores, i) => (
@@ -98,19 +99,19 @@ class BriscaloneApp extends React.Component {
           gameScore.map((total, i) => <td>{total}</td>)
         }
       </tr>
-    </tbody></table>
+    </div>
   }
 
   initializeClient(data) {
     const socketKey = window.localStorage.getItem('socketKey');
     if (socketKey !== data.socketKey) {
       window.localStorage.setItem('socketKey', data.socketKey);
-      this.setState({playerIndex: data.playerIndex});
+      this.setState({seatIndex: data.seatIndex});
     }
   }
 
   renderPlayer(playerHand, index) {
-    const {game, ws, seatIndex} = this.state;
+    const {game, ws, seatIndex, usernames} = this.state;
     const round = game.loadRound();
     const isCurrentPlayer = round.playerIndex === index;
     const isSeatedPlayer = seatIndex === index;
@@ -123,6 +124,7 @@ class BriscaloneApp extends React.Component {
     const {nextAction} = round;
     const isTopPlayer = offset === 2 || offset === 3;
     const isMiddlePlayer = !isTopPlayer && !isSeatedPlayer;
+    const playerName = usernames[index] || `Player ${index + 1}`
     return (
       <div
         key={index}
@@ -131,7 +133,7 @@ class BriscaloneApp extends React.Component {
           borderRadius: 5,
           position: 'absolute',
           width: isSeatedPlayer ? '100%' : isTopPlayer ?  '50%' : '15%',
-          height: isTopPlayer ? '10%' : '35%',
+          height: isTopPlayer ? '10%' : isMiddlePlayer ? '35%' : '20%',
           top: [
             '45%',
             '10%',
@@ -148,7 +150,7 @@ class BriscaloneApp extends React.Component {
           ][offset]
         }}>
         <div style={offset === 1 || offset === 4 ? {writingMode: 'vertical-lr', float: offset === 4 ? 'right' : null} : null}>
-          <p>Player {index + 1}{index === round.bidderIndex ? <span style={{fontWeight: 'bold'}}> • bid winner</span> : null}</p>
+          <p>{playerName}{index === round.bidderIndex ? <span style={{fontWeight: 'bold'}}> • bid winner</span> : null}</p>
           <p>
             TRICKS: {round.playerTricks(index).length} •
             POINTS: {round.playerPointsTaken(index)}
@@ -160,13 +162,11 @@ class BriscaloneApp extends React.Component {
               <div>
                 {sortBy(playerHand, [getSuit, getRank]).map(
                   card => (
-                    isSeatedPlayer
-                    ? <Card
-                        style={{width: '12%'}}
-                        card={card}
-                        onClick={() => ws.send(JSON.stringify({messageType: 'throw', message: card}))}
-                      />
-                    : '🂠 '
+                    <Card
+                      style={{width: '12%'}}
+                      card={card}
+                      onClick={() => ws.send(JSON.stringify({messageType: 'throw', message: card}))}
+                    />
                   )
                 )}
               </div>
@@ -210,7 +210,7 @@ class BriscaloneApp extends React.Component {
             )
           : round.nextAction === 'monkey'
           ? suitOrder.map((suit, i) => (
-                <button style={{padding: '5%', color: i % 1 ? 'red' : 'black'}} onClick={() => ws.send(JSON.stringify({messageType: 'monkey', message: i}))}>
+                <button style={{padding: '5%', color: i % 1 ? 'red' : 'black', fontSize: 30}} onClick={() => ws.send(JSON.stringify({messageType: 'monkey', message: i}))}>
                   {suit}
                 </button>
               )
@@ -244,7 +244,7 @@ class BriscaloneApp extends React.Component {
                   }}
                 >
                   {
-                    playerLastBid === 'undefined'
+                    playerLastBid === undefined
                     ? null
                     : playerLastBid === 'P'
                     ? 'I pass'
@@ -295,12 +295,65 @@ class BriscaloneApp extends React.Component {
 
 
   }
+  onMessageSubmit(e) {
+    const input = this.message;
+    e.preventDefault();
+    const {seatIndex, usernames} = this.state;
+    if (!input.value) {
+      return false;
+    }
+    if (!usernames[seatIndex]) {
+      usernames[seatIndex] = input.value;
+      this.setState({usernames});
+      this.state.ws.send(JSON.stringify({messageType: 'username', message: input.value}));
+    } else {
+      this.pushMessage(usernames[seatIndex], seatIndex, input.value);
+    }
+    input.value = '';
+    return true;
+  }
+  pushMessage(recipient, id, message) {
+    const prevState = this.state;
+    const messageData = {
+      id,
+      message,
+      senderName: recipient,
+    };
+    this.state.ws.send(JSON.stringify({messageType: 'chat', message: messageData}));
+  }
+
+  renderChat = () => {
+    const {game, seatIndex, usernames} = this.state;
+    return (
+      <div className="chatfeed-wrapper" style={{height: '20%', position: 'absolute', top: '80%', width: '100%'}}>
+        <ChatFeed
+          maxHeight={250}
+          messages={this.state.chatMessages} // Boolean: list of message objects
+          showSenderName
+        />
+        <form onSubmit={e => this.onMessageSubmit(e)}>
+          <input
+            ref={m => {
+              this.message = m;
+            }}
+            placeholder={!usernames[seatIndex] ? "What's your name?" : "Type a message..."}
+            className="message-input"
+          />
+        </form>
+      </div>
+    )
+  }
+
   render() {
-    const {game} = this.state;
+    const {game, seatIndex, usernames} = this.state;
 
     if (!game.rounds.length) {
-      console.log(game.rounds)
-      return <div><h1>Waiting for more players</h1><button onClick={() => window.localStorage.clear()}>clear ls</button></div>
+      return (
+        <div style={{position: 'relative'}}>
+          <h1>Waiting for more players</h1>
+          {this.renderChat()}
+        </div>
+      );
     }
     const round = game.loadRound();
     console.log('partner card')
@@ -316,9 +369,23 @@ class BriscaloneApp extends React.Component {
           }
         </div>
         {round.bidIsFinal ? this.renderTrick() : this.renderBid()}
-        <div style={{position: 'absolute', top: '90%'}}>
+        <div style={{height: '15%', top: '65%', position: 'absolute'}}>
+          <p>
+            ROUND: {game.roundData.length}
+            {
+              round.bidIsFinal
+              ? `WINNING BID: ${rankOrder[round.bidRank]}`
+              : null
+            }
+            {
+              round.monkeySuit
+              ? `MONKEY SUIT: ${suitOrder[round.monkeySuit]}`
+              : null
+            }
+          </p>
           {this.renderScore()}
         </div>
+        {this.renderChat()}
       </div>
     );
   }
