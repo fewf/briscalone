@@ -18,6 +18,16 @@ const rankOrder = [
   '10',
   'A'
 ]
+const TOP_TABLE_ROW_HEIGHT = 10;
+const MIDDLE_TABLE_HEIGHT = 35;
+const BOTTOM_TABLE_HEIGHT = 20;
+const GAME_INFO_HEIGHT = 15;
+const CHAT_HEIGHT = 15;
+
+const TOP_TABLE_PLAYER_COLUMN_WIDTH = 50;
+
+const MIDDLE_TABLE_PLAYER_COLUMN_WIDTH = 15;
+const MIDDLE_TABLE_TABLE_COLUMN_WIDTH = 70;
 
 const suitOrder = [
   '♦',
@@ -72,33 +82,34 @@ class BriscaloneApp extends React.Component {
     this.setState({ws});
   }
   renderScore() {
-    const {game} = this.state;
+    const {game, usernames} = this.state;
     const {gameScore, roundScores} = game;
     console.log(roundScores)
+    const divStyle = {display: 'inline-block', minWidth: '20%'};
     return <div width={'100%'}>
-      <div style={{display: 'inline-block', width: '20%'}}>1</div>
-      <div style={{display: 'inline-block', width: '20%'}}>2</div>
-      <div style={{display: 'inline-block', width: '20%'}}>3</div>
-      <div style={{display: 'inline-block', width: '20%'}}>4</div>
-      <div style={{display: 'inline-block', width: '20%'}}>5</div>
+      {
+        range(5).map(
+          index => <div style={divStyle}>{usernames[index] || `Player ${index + 1}`}</div>
+        )
+      }
       {
         roundScores.map(
           (scores, i) => (
-            <tr key={i}>
+            <div key={i}>
               {
-                scores.map((score, j) =>
-                  <td key={j}>{score}</td>
+                scores.map(
+                  (score, j) => <div key={j} style={divStyle}>{score}</div>
                 )
               }
-            </tr>
+            </div>
           )
         )
       }
-      <tr>
+      <div>
         {
-          gameScore.map((total, i) => <td>{total}</td>)
+          gameScore.map((total, i) => <div style={{fontWeight: 'bold', ...divStyle}}>{total}</div>)
         }
-      </tr>
+      </div>
     </div>
   }
 
@@ -132,21 +143,21 @@ class BriscaloneApp extends React.Component {
           border: `2px solid ${isCurrentPlayer ? 'black' : 'lightgray'}`,
           borderRadius: 5,
           position: 'absolute',
-          width: isSeatedPlayer ? '100%' : isTopPlayer ?  '50%' : '15%',
-          height: isTopPlayer ? '10%' : isMiddlePlayer ? '35%' : '20%',
+          width: isSeatedPlayer ? '100%' : isTopPlayer ?  `${TOP_TABLE_PLAYER_COLUMN_WIDTH}%` : `${MIDDLE_TABLE_PLAYER_COLUMN_WIDTH}%`,
+          height: isTopPlayer ? `${TOP_TABLE_ROW_HEIGHT}%` : isMiddlePlayer ? `${MIDDLE_TABLE_HEIGHT}%` : `${BOTTOM_TABLE_HEIGHT}%`,
           top: [
-            '45%',
-            '10%',
+            `${TOP_TABLE_ROW_HEIGHT + MIDDLE_TABLE_HEIGHT}%`,
+            `${TOP_TABLE_ROW_HEIGHT}%`,
             '0%',
             '0%',
-            '10%'
+            `${TOP_TABLE_ROW_HEIGHT}%`
           ][offset],
           left: [
             '0%',
             '0%',
             '0%',
-            '50%',
-            '85%'
+            `${TOP_TABLE_PLAYER_COLUMN_WIDTH}%`,
+            `${MIDDLE_TABLE_PLAYER_COLUMN_WIDTH + MIDDLE_TABLE_TABLE_COLUMN_WIDTH}%`
           ][offset]
         }}>
         <div style={offset === 1 || offset === 4 ? {writingMode: 'vertical-lr', float: offset === 4 ? 'right' : null} : null}>
@@ -224,7 +235,7 @@ class BriscaloneApp extends React.Component {
     const {game, seatIndex} = this.state;
     const round = game.loadRound();
     return (
-      <div style={{position: 'relative', left: '15%', top: '10%', width: '70%', height: '35%'}}>
+      <div style={{position: 'relative', left: `${MIDDLE_TABLE_PLAYER_COLUMN_WIDTH}%`, top: `${100 - TOP_TABLE_ROW_HEIGHT}%`, width:`${MIDDLE_TABLE_TABLE_COLUMN_WIDTH}%`, height: `${MIDDLE_TABLE_HEIGHT}%`}}>
         {
           range(5).map(
             index => {
@@ -356,11 +367,8 @@ class BriscaloneApp extends React.Component {
       );
     }
     const round = game.loadRound();
-    console.log('partner card')
-    console.log(round.monkeySuit)
-    console.log(round.bidRank)
     return (
-      <div style={{position: 'relative', width: '100%', height: '100%'}}>
+      <div style={{width: '100%', height: '100%', position: 'relative'}}>
         <div>
           {
             round.playerHands && round.playerHands.map(
@@ -369,9 +377,9 @@ class BriscaloneApp extends React.Component {
           }
         </div>
         {round.bidIsFinal ? this.renderTrick() : this.renderBid()}
-        <div style={{height: '15%', top: '65%', position: 'absolute'}}>
+        <div style={{height: '15%', top: '65%', position: 'absolute', width: '100%'}}>
           <p>
-            ROUND: {game.roundData.length}
+            ROUND: {game.rounds.length}
             {
               round.bidIsFinal
               ? `WINNING BID: ${rankOrder[round.bidRank]}`
