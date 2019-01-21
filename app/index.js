@@ -20,8 +20,9 @@ const rankOrder = [
 ]
 const TOP_TABLE_ROW_HEIGHT = 10;
 const MIDDLE_TABLE_HEIGHT = 35;
-const BOTTOM_TABLE_HEIGHT = 20;
-const GAME_INFO_HEIGHT = 15;
+const BOTTOM_TABLE_HEIGHT = 25;
+const ROUND_INFO_HEIGHT = 5;
+const GAME_SCORES_HEIGHT = 10;
 const CHAT_HEIGHT = 15;
 
 const TOP_TABLE_PLAYER_COLUMN_WIDTH = 50;
@@ -83,15 +84,28 @@ class BriscaloneApp extends React.Component {
   }
   renderScore() {
     const {game, usernames} = this.state;
-    const {gameScore, roundScores} = game;
+    // const {gameScore, roundScores} = game;
+    const gameScore = [99, 99, 99, 99, 99]
+    const roundScores = [[1,-1,-2,1,1],[1,-1,-2,1,1],[1,-1,-2,1,1],[1,-1,-2,1,1],[1,-1,-2,1,1],[1,-1,-2,1,1],[1,-1,-2,1,1],[1,-1,-2,1,1]]
     console.log(roundScores)
     const divStyle = {display: 'inline-block', minWidth: '20%'};
-    return <div width={'100%'}>
+    return <div style={{
+      height: `${GAME_SCORES_HEIGHT}%`,
+      top: `${TOP_TABLE_ROW_HEIGHT + MIDDLE_TABLE_HEIGHT + BOTTOM_TABLE_HEIGHT + ROUND_INFO_HEIGHT}%`,
+      position: 'absolute',
+      width: '100%',
+      overflow: 'scroll'
+    }}>
       {
         range(5).map(
           index => <div style={divStyle}>{usernames[index] || `Player ${index + 1}`}</div>
         )
       }
+      <div>
+        {
+          gameScore.map((total, i) => <div style={{fontWeight: 'bold', ...divStyle}}>{total}</div>)
+        }
+      </div>
       {
         roundScores.map(
           (scores, i) => (
@@ -105,11 +119,6 @@ class BriscaloneApp extends React.Component {
           )
         )
       }
-      <div>
-        {
-          gameScore.map((total, i) => <div style={{fontWeight: 'bold', ...divStyle}}>{total}</div>)
-        }
-      </div>
     </div>
   }
 
@@ -235,7 +244,7 @@ class BriscaloneApp extends React.Component {
     const {game, seatIndex} = this.state;
     const round = game.loadRound();
     return (
-      <div style={{position: 'relative', left: `${MIDDLE_TABLE_PLAYER_COLUMN_WIDTH}%`, top: `${100 - TOP_TABLE_ROW_HEIGHT}%`, width:`${MIDDLE_TABLE_TABLE_COLUMN_WIDTH}%`, height: `${MIDDLE_TABLE_HEIGHT}%`}}>
+      <div style={{position: 'relative', left: `${MIDDLE_TABLE_PLAYER_COLUMN_WIDTH}%`, top: `${TOP_TABLE_ROW_HEIGHT}%`, width:`${MIDDLE_TABLE_TABLE_COLUMN_WIDTH}%`, height: `${MIDDLE_TABLE_HEIGHT}%`}}>
         {
           range(5).map(
             index => {
@@ -277,7 +286,7 @@ class BriscaloneApp extends React.Component {
     const round = game.loadRound();
     const trick = round.trick;
     return (
-      <div style={{position: 'relative', left: '15%', top: '10%', width: '70%', height: '35%'}}>
+      <div style={{position: 'relative', left: `${MIDDLE_TABLE_PLAYER_COLUMN_WIDTH}%`, top: `${TOP_TABLE_ROW_HEIGHT}%`, width:`${MIDDLE_TABLE_TABLE_COLUMN_WIDTH}%`, height: `${MIDDLE_TABLE_HEIGHT}%`}}>
         {
           range(5).map(
             index => {
@@ -336,7 +345,7 @@ class BriscaloneApp extends React.Component {
   renderChat = () => {
     const {game, seatIndex, usernames} = this.state;
     return (
-      <div className="chatfeed-wrapper" style={{height: '20%', position: 'absolute', top: '80%', width: '100%'}}>
+      <div className="chatfeed-wrapper" style={{height: `${CHAT_HEIGHT}%`, top: `${TOP_TABLE_ROW_HEIGHT + MIDDLE_TABLE_HEIGHT + BOTTOM_TABLE_HEIGHT + ROUND_INFO_HEIGHT + GAME_SCORES_HEIGHT}%`, position: 'absolute', width: '100%'}}>
         <ChatFeed
           maxHeight={250}
           messages={this.state.chatMessages} // Boolean: list of message objects
@@ -377,22 +386,28 @@ class BriscaloneApp extends React.Component {
           }
         </div>
         {round.bidIsFinal ? this.renderTrick() : this.renderBid()}
-        <div style={{height: '15%', top: '65%', position: 'absolute', width: '100%'}}>
+        <div style={{
+          height: `${ROUND_INFO_HEIGHT}%`,
+          top: `${TOP_TABLE_ROW_HEIGHT + MIDDLE_TABLE_HEIGHT + BOTTOM_TABLE_HEIGHT}%`,
+          position: 'absolute',
+          width: '100%',
+          overflow: 'scroll'
+        }}>
           <p>
             ROUND: {game.rounds.length}
             {
               round.bidIsFinal
-              ? `WINNING BID: ${rankOrder[round.bidRank]}`
+              ? ` • WINNING BID: ${rankOrder[round.bidRank]}`
               : null
             }
             {
               round.monkeySuit
-              ? `MONKEY SUIT: ${suitOrder[round.monkeySuit]}`
+              ? ` • MONKEY SUIT: ${suitOrder[round.monkeySuit]}`
               : null
             }
           </p>
-          {this.renderScore()}
         </div>
+        {this.renderScore()}
         {this.renderChat()}
       </div>
     );
