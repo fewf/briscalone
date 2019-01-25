@@ -34,7 +34,8 @@ function reconnectSocket(disconnectedSocket, newSocket, socketKey) {
   console.log('reseating player ' + playerSockets.indexOf(disconnectedSocket))
   newSocket.send(JSON.stringify({
     seatIndex: playerSockets.indexOf(disconnectedSocket),
-    socketKey
+    socketKey,
+    usernames: playerSockets.map(pss => pss.username),
   }));
   if (game.rounds.length) {
     broadcastGame(game);

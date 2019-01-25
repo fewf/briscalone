@@ -35,7 +35,14 @@ const suitOrder = [
   '♠',
   '♥',
   '♣'
-]
+];
+
+const customBubble = props => (
+  <p style={{lineHeight: 0}}>{`${props.message.senderName}: ${
+    props.message.message
+  }`}</p>
+);
+
 class BriscaloneApp extends React.Component {
   constructor(props) {
     super(props);
@@ -84,9 +91,7 @@ class BriscaloneApp extends React.Component {
   }
   renderScore() {
     const {game, usernames} = this.state;
-    // const {gameScore, roundScores} = game;
-    const gameScore = [99, 99, 99, 99, 99]
-    const roundScores = [[1,-1,-2,1,1],[1,-1,-2,1,1],[1,-1,-2,1,1],[1,-1,-2,1,1],[1,-1,-2,1,1],[1,-1,-2,1,1],[1,-1,-2,1,1],[1,-1,-2,1,1]]
+    const {gameScore, roundScores} = game;
     console.log(roundScores)
     const divStyle = {display: 'inline-block', minWidth: '20%'};
     return <div style={{
@@ -123,11 +128,8 @@ class BriscaloneApp extends React.Component {
   }
 
   initializeClient(data) {
-    const socketKey = window.localStorage.getItem('socketKey');
-    if (socketKey !== data.socketKey) {
-      window.localStorage.setItem('socketKey', data.socketKey);
-      this.setState({seatIndex: data.seatIndex});
-    }
+    window.localStorage.setItem('socketKey', data.socketKey);
+    this.setState({seatIndex: data.seatIndex, usernames: data.usernames || []});
   }
 
   renderPlayer(playerHand, index) {
@@ -344,11 +346,14 @@ class BriscaloneApp extends React.Component {
 
   renderChat = () => {
     const {game, seatIndex, usernames} = this.state;
+    console.log(usernames);
+    console.log(usernames[seatIndex]);
     return (
       <div className="chatfeed-wrapper" style={{height: `${CHAT_HEIGHT}%`, top: `${TOP_TABLE_ROW_HEIGHT + MIDDLE_TABLE_HEIGHT + BOTTOM_TABLE_HEIGHT + ROUND_INFO_HEIGHT + GAME_SCORES_HEIGHT}%`, position: 'absolute', width: '100%'}}>
         <ChatFeed
           maxHeight={250}
           messages={this.state.chatMessages} // Boolean: list of message objects
+          chatBubble={customBubble}
           showSenderName
         />
         <form onSubmit={e => this.onMessageSubmit(e)}>
