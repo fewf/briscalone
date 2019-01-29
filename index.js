@@ -160,3 +160,10 @@ wss.on("connection", function(ws) {
     if (playerSocket) playerSocket.websocket = null;
   })
 });
+
+// ping client every 10 seconds so connection doesn't die
+setInterval(() => {
+  wss.clients.forEach((client) => {
+    client.send(new Date().toTimeString());
+  });
+}, 10000);
