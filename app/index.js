@@ -66,6 +66,7 @@ class BriscaloneApp extends React.Component {
     const host = location.origin.replace(/^http/, 'ws')
     const ws = new WebSocket(host);
     ws.onmessage = ({data}) => {
+      if (!isNaN(data)) return;
       console.log('first message')
       console.log(data)
       ws.send(JSON.stringify({
@@ -73,10 +74,12 @@ class BriscaloneApp extends React.Component {
         message: window.localStorage.getItem('socketKey')
       }));
       ws.onmessage = ({data}) => {
+        if (!isNaN(data)) return;
         console.log('second message');
         console.log(data);
         this.initializeClient(JSON.parse(data));
         ws.onmessage = ({data}) => {
+          if (!isNaN(data)) return;
           console.log('perpetual message');
           console.log(data);
           const message = JSON.parse(data);

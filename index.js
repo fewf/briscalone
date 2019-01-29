@@ -164,6 +164,6 @@ wss.on("connection", function(ws) {
 // ping client every 10 seconds so connection doesn't die
 setInterval(() => {
   wss.clients.forEach((client) => {
-    client.send(new Date().toTimeString());
+    client.send(Number(new Date()));
   });
 }, 10000);
