@@ -67,25 +67,18 @@ class BriscaloneApp extends React.Component {
     const ws = new WebSocket(host);
     ws.onmessage = ({data}) => {
       if (!isNaN(data)) return;
-      console.log('first message')
-      console.log(data)
       ws.send(JSON.stringify({
         messageType: 'initialize',
         message: window.localStorage.getItem('socketKey')
       }));
       ws.onmessage = ({data}) => {
         if (!isNaN(data)) return;
-        console.log('second message');
-        console.log(data);
         this.initializeClient(JSON.parse(data));
         ws.onmessage = ({data}) => {
           if (!isNaN(data)) return;
-          console.log('perpetual message');
-          console.log(data);
           const message = JSON.parse(data);
           if (message.game) message.game = GameEngine(message.game);
           if (message.chatMessages) message.chatMessages = message.chatMessages.map(cm => new Message(cm));
-          console.log(message);
           this.setState(message);
         };
       }
@@ -95,7 +88,6 @@ class BriscaloneApp extends React.Component {
   renderScore() {
     const {game, usernames} = this.state;
     const {gameScore, roundScores} = game;
-    console.log(roundScores)
     const divStyle = {display: 'inline-block', minWidth: '20%'};
     return <div style={{
       height: `${GAME_SCORES_HEIGHT}%`,
@@ -106,12 +98,12 @@ class BriscaloneApp extends React.Component {
     }}>
       {
         range(5).map(
-          index => <div style={divStyle}>{usernames[index] || `Player ${index + 1}`}</div>
+          index => <div key={index} style={divStyle}>{usernames[index] || `Player ${index + 1}`}</div>
         )
       }
       <div>
         {
-          gameScore.map((total, i) => <div style={{fontWeight: 'bold', ...divStyle}}>{total}</div>)
+          gameScore.map((total, i) => <div key={i} style={{fontWeight: 'bold', ...divStyle}}>{total}</div>)
         }
       </div>
       {
@@ -143,8 +135,6 @@ class BriscaloneApp extends React.Component {
     const offset = (index + 5 - seatIndex) % 5;
     const trick = round.trick;
     const playerCard = trick && trick.filter((ba, i) => (i + round.trickFirstPlayerIndex) % 5 === index).pop()
-    console.log(round.trickCards.filter((ba, i) => (i + round.roundFirstPlayerIndex) % 5 === index).pop())
-    console.log(index)
     const playerLastBid = round.bidActions.filter((ba, i) => (i + round.roundFirstPlayerIndex) % 5 === index).pop()
     const {nextAction} = round;
     const isTopPlayer = offset === 2 || offset === 3;
@@ -188,6 +178,7 @@ class BriscaloneApp extends React.Component {
                 {sortBy(playerHand, [getSuit, getRank]).map(
                   card => (
                     <Card
+                      key={card}
                       style={{width: '12%'}}
                       card={card}
                       onClick={() => ws.send(JSON.stringify({messageType: 'throw', message: card}))}
@@ -235,7 +226,7 @@ class BriscaloneApp extends React.Component {
             )
           : round.nextAction === 'monkey'
           ? suitOrder.map((suit, i) => (
-                <button style={{padding: '5%', color: i % 1 ? 'red' : 'black', fontSize: 30}} onClick={() => ws.send(JSON.stringify({messageType: 'monkey', message: i}))}>
+                <button key={i} style={{padding: '5%', color: i % 1 ? 'red' : 'black', fontSize: 30}} onClick={() => ws.send(JSON.stringify({messageType: 'monkey', message: i}))}>
                   {suit}
                 </button>
               )
@@ -255,10 +246,10 @@ class BriscaloneApp extends React.Component {
             index => {
               const offset = (index + 5 - seatIndex) % 5;
               const playerLastBid = round.bidActions.filter((ba, i) => (i + round.roundFirstPlayerIndex) % 5 === index).pop()
-              console.log(playerLastBid)
               return (
 
                 <span
+                  key={index}
                   style={{
                     position: 'absolute',
                     top: [null, '40%', '5%', '5%', '40%'][offset],
@@ -299,6 +290,7 @@ class BriscaloneApp extends React.Component {
               const playerCard = trick && trick.filter((ba, i) => (i + round.trickFirstPlayerIndex) % 5 === index).pop()
               return isNaN(playerCard) ? null : (
                 <Card
+                  key={index}
                   card={playerCard}
                   style={{
                     position: 'absolute',
@@ -349,8 +341,6 @@ class BriscaloneApp extends React.Component {
 
   renderChat = () => {
     const {game, seatIndex, usernames} = this.state;
-    console.log(usernames);
-    console.log(usernames[seatIndex]);
     return (
       <div className="chatfeed-wrapper" style={{height: `${CHAT_HEIGHT}%`, top: `${TOP_TABLE_ROW_HEIGHT + MIDDLE_TABLE_HEIGHT + BOTTOM_TABLE_HEIGHT + ROUND_INFO_HEIGHT + GAME_SCORES_HEIGHT}%`, position: 'absolute', width: '100%'}}>
         <ChatFeed

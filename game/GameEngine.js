@@ -218,7 +218,6 @@ module.exports = (rounds = []) => ({
             : cardNum
           )
         );
-        console.log(cardValues);
         return this.playerHandsDealt.findIndex(
           hand => hand.indexOf(
             trick[cardValues.indexOf(Math.max(...cardValues))]
