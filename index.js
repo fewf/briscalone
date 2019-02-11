@@ -19,7 +19,7 @@ const wss = new WebSocketServer({server: server})
 console.log("websocket server created")
 
 function broadcastGame(game) {
-  playerSockets.forEach((ps, i) => ps.websocket.send(JSON.stringify({
+  playerSockets.forEach((ps, i) => ps.websocket && ps.websocket.send(JSON.stringify({
     game: serializeGame(game, i),
     seatIndex: i
   })));
@@ -83,6 +83,14 @@ function handleGamePlay(ws, message) {
     console.log('not next action')
     return;
   }
+
+  handleGamePlayMessage(round, message);
+}
+
+function handleGamePlayMessage(message) {
+  console.log(message);
+  const round = game.loadRound();
+  const playerIndex = round.playerIndex;
   switch(message.messageType) {
     case 'bid':
       let bidAction = message.message;
@@ -115,6 +123,8 @@ function handleGamePlay(ws, message) {
   console.log('next move is')
   console.log(newRound.nextAction);
 }
+
+module.exports = {handleGamePlayMessage};
 
 function setUsername(ws, username) {
 
