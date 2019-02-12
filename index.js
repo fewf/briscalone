@@ -2,19 +2,27 @@ const WebSocketServer = require("ws").Server
 const http = require("http")
 const express = require("express")
 const app = express()
-const port = process.env.PORT || 5000
+const port = process.env.PORT || 5000;
+const isTest = process.argv[2] === '--test';
+if (isTest) {
+  console.log('running server in test mode');
+}
 
 const game = require('./game/GameEngine')();
 const playerSockets = [];
 const chatMessages = [];
 
 app.use(express.static(__dirname + "/"))
+app.use(express.json());
 
 const server = http.createServer(app)
 server.listen(port)
 
 console.log("http server listening on %d", port)
-
+if (isTest) {
+  app.post('/test/', (req, res) => {handleGamePlayMessage(req.body); res.send('ok')});
+  // app.post('/test/playfirst/', (req, res) => {let round = game.loadRound(); handleGamePlayMessage({messageType: 'throw', message: round.playerHands[round.playerIndex][0]}); res.send('ok')});
+}
 const wss = new WebSocketServer({server: server})
 console.log("websocket server created")
 
@@ -65,7 +73,21 @@ function initializeSocket(ws, socketKey) {
   }
   if (playerSockets.length === 5) {
     if (!game.rounds.length) {
-      game.initializeRound();
+      game.initializeRound(isTest ? {
+        shuffle: [
+          // player 1 will put up some resistance
+          5, 6, 7, 16, 18, 19, 20, 21,
+          // players 2 and 3 would make a killer team
+          // but since they don't know they're
+          // just along for the ride
+          30, 31, 32, 33, 34, 26, 27, 29,
+          22, 23, 24, 25, 35, 36, 37, 38,
+          // player 4's gonna be 5's partner
+          4, 3, 10, 11, 12, 13, 14, 15,
+          // player 5's gonna win
+          9, 8, 2, 1, 0, 17, 28, 39
+        ],
+      } : {});
     }
     broadcastGame(game);
   }
@@ -84,7 +106,7 @@ function handleGamePlay(ws, message) {
     return;
   }
 
-  handleGamePlayMessage(round, message);
+  handleGamePlayMessage(message);
 }
 
 function handleGamePlayMessage(message) {
@@ -123,8 +145,6 @@ function handleGamePlayMessage(message) {
   console.log('next move is')
   console.log(newRound.nextAction);
 }
-
-module.exports = {handleGamePlayMessage};
 
 function setUsername(ws, username) {
 

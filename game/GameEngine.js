@@ -20,7 +20,7 @@ module.exports = (rounds = []) => ({
   initializeRound(roundData) {
     this.rounds.push({
       trickCards: [],
-      shuffle: shuffle([...Array(40).keys()]),
+      shuffle: shuffle(range(40)),
       bidActions: [],
       monkeySuit: undefined,
       ...roundData
@@ -66,7 +66,7 @@ module.exports = (rounds = []) => ({
         return ret;
       },
       get playerHandsDealt() {
-        return [...Array(5).keys()].map(i => this.shuffle.slice(i * 8, (i + 1) * 8));
+        return range(5).map(i => this.shuffle.slice(i * 8, (i + 1) * 8));
       },
       get tricks() {
         const ret = [];
@@ -257,8 +257,8 @@ module.exports = (rounds = []) => ({
 
   get gameScore() {
     const {roundScores} = this;
-    return [...Array(5).keys()].map(idx =>
-      [...Array(roundScores.length).keys()].reduce(
+    return range(5).map(idx =>
+      range(roundScores.length).reduce(
         (sum, idx2) => sum + roundScores[idx2][idx],
         0
       )

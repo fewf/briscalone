@@ -181,6 +181,7 @@ class BriscaloneApp extends React.Component {
                       key={card}
                       style={{width: '12%'}}
                       card={card}
+                      className='handCard'
                       onClick={() => ws.send(JSON.stringify({messageType: 'throw', message: card}))}
                     />
                   )

@@ -27,10 +27,11 @@ const num2fileName = num => `${[
 
 class Card extends React.Component {
 	render() {
-		const {card, style, onClick} = this.props;
+		const {card, style, onClick, className} = this.props;
 		if (isNaN(card)) return null;
 		return (
 			<span
+				className={className}
 				onClick={onClick}
 			>
 				<img style={style} src={`./images/${num2fileName(card)}`} />
