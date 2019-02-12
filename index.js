@@ -20,7 +20,14 @@ server.listen(port)
 
 console.log("http server listening on %d", port)
 if (isTest) {
-  app.post('/test/', (req, res) => {handleGamePlayMessage(req.body); res.send('ok')});
+  app.post('/test/', (req, res) => {
+    const ok = handleGamePlayMessage(req.body);
+    if (ok) {
+      res.send('ok');
+    } else {
+      throw new Error('not ok');
+    }
+  });
   // app.post('/test/playfirst/', (req, res) => {let round = game.loadRound(); handleGamePlayMessage({messageType: 'throw', message: round.playerHands[round.playerIndex][0]}); res.send('ok')});
 }
 const wss = new WebSocketServer({server: server})
@@ -76,16 +83,16 @@ function initializeSocket(ws, socketKey) {
       game.initializeRound(isTest ? {
         shuffle: [
           // player 1 will put up some resistance
-          5, 6, 7, 16, 18, 19, 20, 21,
+          4, 5, 6, 16, 18, 19, 20, 21,
           // players 2 and 3 would make a killer team
           // but since they don't know they're
           // just along for the ride
           30, 31, 32, 33, 34, 26, 27, 29,
           22, 23, 24, 25, 35, 36, 37, 38,
           // player 4's gonna be 5's partner
-          4, 3, 10, 11, 12, 13, 14, 15,
+          0, 1, 10, 11, 12, 13, 14, 15,
           // player 5's gonna win
-          9, 8, 2, 1, 0, 17, 28, 39
+          2, 3, 7, 8, 9, 17, 28, 39
         ],
       } : {});
     }
@@ -111,20 +118,22 @@ function handleGamePlay(ws, message) {
 
 function handleGamePlayMessage(message) {
   console.log(message);
+  let stateChanged = false;
   const round = game.loadRound();
   const playerIndex = round.playerIndex;
   switch(message.messageType) {
     case 'bid':
-      let bidAction = message.message;
-      if (game.pushBidAction(bidAction) !== false) {
-        console.log(`${playerIndex + 1} bid ${bidAction}`)
+      stateChanged = game.pushBidAction(message.message);
+      if (stateChanged) {
+        console.log(`${playerIndex + 1} bid ${message.message}`);
+        stateChanged = true;
         broadcastGame(game);
       }
       break;
     case 'throw':
       const updatedRound = game.pushTrickCard(message.message);
-      if (updatedRound !== false) {
-
+      if (updatedRound) {
+        stateChanged = true;
         console.log(`${playerIndex + 1} threw ${message.message}`)
         if (updatedRound.isFinal) {
           console.log('new round initialized')
@@ -136,6 +145,7 @@ function handleGamePlayMessage(message) {
     case 'monkey':
       if (message.message > -1 && message.message < 4) {
         game.setSuit(message.message);
+        stateChanged = true;
         console.log(`${playerIndex + 1} called ${message.message} monkey`)
         broadcastGame(game);
       }
@@ -144,6 +154,7 @@ function handleGamePlayMessage(message) {
   const newRound = game.loadRound();
   console.log('next move is')
   console.log(newRound.nextAction);
+  return stateChanged;
 }
 
 function setUsername(ws, username) {

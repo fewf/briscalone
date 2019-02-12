@@ -227,7 +227,7 @@ class BriscaloneApp extends React.Component {
             )
           : round.nextAction === 'monkey'
           ? suitOrder.map((suit, i) => (
-                <button key={i} style={{padding: '5%', color: i % 1 ? 'red' : 'black', fontSize: 30}} onClick={() => ws.send(JSON.stringify({messageType: 'monkey', message: i}))}>
+                <button className='suitButton' key={i} style={{padding: '5%', color: i % 1 ? 'red' : 'black', fontSize: 30}} onClick={() => ws.send(JSON.stringify({messageType: 'monkey', message: i}))}>
                   {suit}
                 </button>
               )
