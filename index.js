@@ -41,7 +41,17 @@ function broadcastGame(game) {
 }
 
 function serializeGame(game, serializeForPlayerIndex) {
-  return game.rounds;
+  return game.rounds.map(rnd => ({
+    ...rnd,
+    shuffle: rnd.shuffle.map(
+      (num, i) => (
+        // card has been played
+        rnd.trickCards.indexOf(num) !== -1 ||
+        // or card belongs to player
+        (i >= serializeForPlayerIndex * 8 && i < (serializeForPlayerIndex + 1) *8)
+      ) ? num : -1
+    )
+  }));
 }
 
 function reconnectSocket(disconnectedSocket, newSocket, socketKey) {
