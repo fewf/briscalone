@@ -2,22 +2,13 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import { ChatFeed, Message } from 'react-chat-ui';
 import Card from './components/Card';
+import Table from './components/Table';
+import Bids from './components/Bids';
 import {getRank, getSuit} from '../game/cardUtils';
 const sortBy = require('lodash/sortBy');
 const range = require('lodash/range');
 const GameEngine = require('../game/GameEngine');
-const rankOrder = [
-  '2',
-  '3',
-  '4',
-  '5',
-  '6',
-  'J',
-  'Q',
-  'K',
-  '10',
-  'A'
-]
+
 const TOP_TABLE_ROW_HEIGHT = 10;
 const MIDDLE_TABLE_HEIGHT = 35;
 const BOTTOM_TABLE_HEIGHT = 25;
@@ -30,12 +21,6 @@ const TOP_TABLE_PLAYER_COLUMN_WIDTH = 50;
 const MIDDLE_TABLE_PLAYER_COLUMN_WIDTH = 15;
 const MIDDLE_TABLE_TABLE_COLUMN_WIDTH = 70;
 
-const suitOrder = [
-  '♦',
-  '♠',
-  '♥',
-  '♣'
-];
 
 const customBubble = props => (
   <p style={{lineHeight: 0}}>{`${props.message.senderName}: ${
@@ -237,47 +222,6 @@ class BriscaloneApp extends React.Component {
       </div>
     );
   }
-  renderBid() {
-    const {game, seatIndex} = this.state;
-    const round = game.loadRound();
-    return (
-      <div style={{position: 'relative', left: `${MIDDLE_TABLE_PLAYER_COLUMN_WIDTH}%`, top: `${TOP_TABLE_ROW_HEIGHT}%`, width:`${MIDDLE_TABLE_TABLE_COLUMN_WIDTH}%`, height: `${MIDDLE_TABLE_HEIGHT}%`}}>
-        {
-          range(5).map(
-            index => {
-              const offset = (index + 5 - seatIndex) % 5;
-              const playerLastBid = round.bidActions.filter((ba, i) => (i + round.roundFirstPlayerIndex) % 5 === index).pop()
-              return (
-
-                <span
-                  key={index}
-                  style={{
-                    position: 'absolute',
-                    top: [null, '40%', '5%', '5%', '40%'][offset],
-                    bottom: offset === 0 ? '0%' : null,
-                    left: ['35%', '8%', '15%', null, null][offset],
-                    right: [null, null, null, '15%', '8%'][offset],
-                    fontWeight: round.bidderIndex === index ? 'bold' : null
-                  }}
-                >
-                  {
-                    playerLastBid === undefined
-                    ? null
-                    : playerLastBid === 'P'
-                    ? 'I pass'
-                    : playerLastBid === 'Y'
-                    ? `I bid 2 and ${round.bidPoints} points.`
-                    : `I bid ${rankOrder[playerLastBid]}`
-                  }
-                </span>
-              )
-            }
-          )
-        }
-      </div>
-    )
-  }
-
   renderTrick() {
     const {game, seatIndex} = this.state;
     const round = game.loadRound();
@@ -384,7 +328,20 @@ class BriscaloneApp extends React.Component {
             )
           }
         </div>
-        {round.bidIsFinal ? this.renderTrick() : this.renderBid()}
+        <Table>
+
+          {
+            round.bidIsFinal
+            ? <Trick />
+            : <Bids
+                bidActions={round.bidActions}
+                bidderIndex={round.bidderIndex}
+                bidPoints={round.bidPoints}
+                roundFirstPlayerIndex={roundFirstPlayerIndex}
+                seatIndex={seatIndex}
+              />
+          }
+        </Table>
         <div style={{
           height: `${ROUND_INFO_HEIGHT}%`,
           top: `${TOP_TABLE_ROW_HEIGHT + MIDDLE_TABLE_HEIGHT + BOTTOM_TABLE_HEIGHT}%`,
