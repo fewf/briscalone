@@ -4,22 +4,23 @@ import { ChatFeed, Message } from 'react-chat-ui';
 import Card from './components/Card';
 import Table from './components/Table';
 import Bids from './components/Bids';
+import Trick from './components/Trick';
 import {getRank, getSuit} from '../game/cardUtils';
+import {rankOrder, suitOrder} from './constants/CARDS';
+import {
+  TOP_TABLE_ROW_HEIGHT,
+  MIDDLE_TABLE_HEIGHT,
+  BOTTOM_TABLE_HEIGHT,
+  ROUND_INFO_HEIGHT,
+  GAME_SCORES_HEIGHT,
+  CHAT_HEIGHT,
+  TOP_TABLE_PLAYER_COLUMN_WIDTH,
+  MIDDLE_TABLE_PLAYER_COLUMN_WIDTH,
+  MIDDLE_TABLE_TABLE_COLUMN_WIDTH,
+} from './constants/LAYOUT';
 const sortBy = require('lodash/sortBy');
 const range = require('lodash/range');
 const GameEngine = require('../game/GameEngine');
-
-const TOP_TABLE_ROW_HEIGHT = 10;
-const MIDDLE_TABLE_HEIGHT = 35;
-const BOTTOM_TABLE_HEIGHT = 25;
-const ROUND_INFO_HEIGHT = 5;
-const GAME_SCORES_HEIGHT = 10;
-const CHAT_HEIGHT = 15;
-
-const TOP_TABLE_PLAYER_COLUMN_WIDTH = 50;
-
-const MIDDLE_TABLE_PLAYER_COLUMN_WIDTH = 15;
-const MIDDLE_TABLE_TABLE_COLUMN_WIDTH = 70;
 
 
 const customBubble = props => (
@@ -44,7 +45,6 @@ class BriscaloneApp extends React.Component {
     }
     this.renderPlayer = this.renderPlayer.bind(this);
     this.renderScore = this.renderScore.bind(this);
-    this.renderTrick = this.renderTrick.bind(this);
     this.initializeClient = this.initializeClient.bind(this);
   }
   componentDidMount() {
@@ -222,41 +222,6 @@ class BriscaloneApp extends React.Component {
       </div>
     );
   }
-  renderTrick() {
-    const {game, seatIndex} = this.state;
-    const round = game.loadRound();
-    const trick = round.trick;
-    return (
-      <div style={{position: 'relative', left: `${MIDDLE_TABLE_PLAYER_COLUMN_WIDTH}%`, top: `${TOP_TABLE_ROW_HEIGHT}%`, width:`${MIDDLE_TABLE_TABLE_COLUMN_WIDTH}%`, height: `${MIDDLE_TABLE_HEIGHT}%`}}>
-        {
-          range(5).map(
-            index => {
-              const offset = (index + 5 - seatIndex) % 5;
-              const playerCard = trick && trick.filter((ba, i) => (i + round.trickFirstPlayerIndex) % 5 === index).pop()
-              return isNaN(playerCard) ? null : (
-                <Card
-                  key={index}
-                  card={playerCard}
-                  style={{
-                    position: 'absolute',
-                    top: [null, '40%', '5%', '5%', '40%'][offset],
-                    bottom: offset === 0 ? '0%' : null,
-                    left: ['35%', '8%', '15%', null, null][offset],
-                    right: [null, null, null, '15%', '8%'][offset],
-                    height: '40%',
-                    transform: `rotate(${['0', '-90', '-35', '35', '90'][offset]}deg)`
-                  }}
-                />
-              )
-            }
-          )
-        }
-      </div>
-    )
-
-
-
-  }
   onMessageSubmit(e) {
     const input = this.message;
     e.preventDefault();
@@ -328,16 +293,25 @@ class BriscaloneApp extends React.Component {
             )
           }
         </div>
-        <Table>
+        <Table
+          seatIndex={seatIndex}
+          bidderIndex={round.bidderIndex}
+        >
 
           {
             round.bidIsFinal
-            ? <Trick />
+            ? <Trick
+                bidderIndex={round.bidderIndex}
+                bidPoints={round.bidPoints}
+                trick={round.trick}
+                trickFirstPlayerIndex={round.trickFirstPlayerIndex}
+                seatIndex={seatIndex}
+              />
             : <Bids
                 bidActions={round.bidActions}
                 bidderIndex={round.bidderIndex}
                 bidPoints={round.bidPoints}
-                roundFirstPlayerIndex={roundFirstPlayerIndex}
+                roundFirstPlayerIndex={round.roundFirstPlayerIndex}
                 seatIndex={seatIndex}
               />
           }
