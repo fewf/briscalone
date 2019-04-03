@@ -5,6 +5,7 @@ import Table from './components/Table';
 import Bids from './components/Bids';
 import Trick from './components/Trick';
 import Player from './components/Player';
+import Score from './components/Score';
 import {rankOrder, suitOrder} from './constants/CARDS';
 import {
   TOP_TABLE_ROW_HEIGHT,
@@ -14,7 +15,6 @@ import {
   GAME_SCORES_HEIGHT,
   CHAT_HEIGHT
 } from './constants/LAYOUT';
-const range = require('lodash/range');
 const GameEngine = require('../game/GameEngine');
 
 
@@ -38,7 +38,6 @@ class BriscaloneApp extends React.Component {
         chatMessages: []
       };
     }
-    this.renderScore = this.renderScore.bind(this);
     this.initializeClient = this.initializeClient.bind(this);
   }
   componentDidMount() {
@@ -64,42 +63,7 @@ class BriscaloneApp extends React.Component {
     }
     this.setState({ws});
   }
-  renderScore() {
-    const {game, usernames} = this.state;
-    const {gameScore, roundScores} = game;
-    const divStyle = {display: 'inline-block', minWidth: '20%'};
-    return <div style={{
-      height: `${GAME_SCORES_HEIGHT}%`,
-      top: `${TOP_TABLE_ROW_HEIGHT + MIDDLE_TABLE_HEIGHT + BOTTOM_TABLE_HEIGHT + ROUND_INFO_HEIGHT}%`,
-      position: 'absolute',
-      width: '100%',
-      overflow: 'scroll'
-    }}>
-      {
-        range(5).map(
-          index => <div key={index} style={divStyle}>{usernames[index] || `Player ${index + 1}`}</div>
-        )
-      }
-      <div>
-        {
-          gameScore.map((total, i) => <div key={i} style={{fontWeight: 'bold', ...divStyle}}>{total}</div>)
-        }
-      </div>
-      {
-        roundScores.map(
-          (scores, i) => (
-            <div key={i}>
-              {
-                scores.map(
-                  (score, j) => <div key={j} style={divStyle}>{score}</div>
-                )
-              }
-            </div>
-          )
-        )
-      }
-    </div>
-  }
+
 
   initializeClient(data) {
     window.localStorage.setItem('socketKey', data.socketKey);
@@ -237,7 +201,11 @@ class BriscaloneApp extends React.Component {
             }
           </p>
         </div>
-        {this.renderScore()}
+        <Score
+          gameScore={game.gameScore}
+          roundScores={game.roundScores}
+          usernames={usernames}
+        />
         {this.renderChat()}
       </div>
     );
