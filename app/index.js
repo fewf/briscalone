@@ -1,28 +1,14 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import { ChatFeed, Message } from 'react-chat-ui';
+import { Message } from 'react-chat-ui';
 import Table from './components/Table';
 import Bids from './components/Bids';
 import Trick from './components/Trick';
 import Player from './components/Player';
 import Score from './components/Score';
-import {rankOrder, suitOrder} from './constants/CARDS';
-import {
-  TOP_TABLE_ROW_HEIGHT,
-  MIDDLE_TABLE_HEIGHT,
-  BOTTOM_TABLE_HEIGHT,
-  ROUND_INFO_HEIGHT,
-  GAME_SCORES_HEIGHT,
-  CHAT_HEIGHT
-} from './constants/LAYOUT';
+import GameInfo from './components/GameInfo';
+import Chat from './components/Chat';
 const GameEngine = require('../game/GameEngine');
-
-
-const customBubble = props => (
-  <p style={{lineHeight: 0}}>{`${props.message.senderName}: ${
-    props.message.message
-  }`}</p>
-);
 
 class BriscaloneApp extends React.Component {
   constructor(props) {
@@ -96,38 +82,19 @@ class BriscaloneApp extends React.Component {
     };
     this.state.ws.send(JSON.stringify({messageType: 'chat', message: messageData}));
   }
-
-  renderChat = () => {
-    const {game, seatIndex, usernames} = this.state;
-    return (
-      <div className="chatfeed-wrapper" style={{height: `${CHAT_HEIGHT}%`, top: `${TOP_TABLE_ROW_HEIGHT + MIDDLE_TABLE_HEIGHT + BOTTOM_TABLE_HEIGHT + ROUND_INFO_HEIGHT + GAME_SCORES_HEIGHT}%`, position: 'absolute', width: '100%'}}>
-        <ChatFeed
-          maxHeight={250}
-          messages={this.state.chatMessages} // Boolean: list of message objects
-          chatBubble={customBubble}
-          showSenderName
-        />
-        <form onSubmit={e => this.onMessageSubmit(e)}>
-          <input
-            ref={m => {
-              this.message = m;
-            }}
-            placeholder={!usernames[seatIndex] ? "What's your name?" : "Type a message..."}
-            className="message-input"
-          />
-        </form>
-      </div>
-    )
-  }
-
   render() {
-    const {game, seatIndex, usernames, ws} = this.state;
+    const {chatMessages, game, seatIndex, usernames, ws} = this.state;
 
     if (!game.rounds.length) {
       return (
         <div style={{position: 'relative'}}>
           <h1>Waiting for more players</h1>
-          {this.renderChat()}
+          <Chat
+            chatMessages={chatMessages}
+            onMessageSubmit={this.onMessageSubmit}
+            seatIndex={seatIndex}
+            usernames={usernames}
+          />
         </div>
       );
     }
@@ -180,33 +147,23 @@ class BriscaloneApp extends React.Component {
               />
           }
         </Table>
-        <div style={{
-          height: `${ROUND_INFO_HEIGHT}%`,
-          top: `${TOP_TABLE_ROW_HEIGHT + MIDDLE_TABLE_HEIGHT + BOTTOM_TABLE_HEIGHT}%`,
-          position: 'absolute',
-          width: '100%',
-          overflow: 'scroll'
-        }}>
-          <p>
-            ROUND: {game.rounds.length}
-            {
-              round.bidIsFinal
-              ? ` • WINNING BID: ${rankOrder[round.bidRank]}`
-              : null
-            }
-            {
-              round.monkeySuit
-              ? ` • MONKEY SUIT: ${suitOrder[round.monkeySuit]}`
-              : null
-            }
-          </p>
-        </div>
+        <GameInfo
+          bidIsFinal={round.bidIsFinal}
+          bidRank={round.bidRank}
+          monkeySuit={round.monkeySuit}
+          roundNumber={game.rounds.length}
+        />
         <Score
           gameScore={game.gameScore}
           roundScores={game.roundScores}
           usernames={usernames}
         />
-        {this.renderChat()}
+        <Chat
+          chatMessages={chatMessages}
+          onMessageSubmit={this.onMessageSubmit}
+          seatIndex={seatIndex}
+          usernames={usernames}
+        />
       </div>
     );
   }
