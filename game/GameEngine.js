@@ -1,19 +1,16 @@
-"use strict"
+"use strict";
 
-const {
-  getPointsForCards,
-  getSuit
-} = require('./cardUtils');
-const shuffle = require('lodash/shuffle');
-const flatten = require('lodash/flatten');
-const dropRightWhile = require('lodash/dropRightWhile');
-const range = require('lodash/range');
+const { getPointsForCards, getSuit } = require("./cardUtils");
+const shuffle = require("lodash/shuffle");
+const flatten = require("lodash/flatten");
+const dropRightWhile = require("lodash/dropRightWhile");
+const range = require("lodash/range");
 
-const PASS_BID = 'P';
-const POINT_BID = 'Y';
-const BID = 'bid';
-const THROW = 'throw';
-const MONKEY = 'monkey';
+const PASS_BID = "P";
+const POINT_BID = "Y";
+const BID = "bid";
+const THROW = "throw";
+const MONKEY = "monkey";
 
 module.exports = (rounds = []) => ({
   rounds,
@@ -33,9 +30,11 @@ module.exports = (rounds = []) => ({
     return {
       // this counts on the chance of two decks shuffled identically
       // being infinitessimally small.
-      roundFirstPlayerIndex: this.rounds.findIndex(
-        rnd => JSON.stringify(rnd.shuffle) === JSON.stringify(roundData.shuffle)
-      ) % 5,
+      roundFirstPlayerIndex:
+        this.rounds.findIndex(
+          rnd =>
+            JSON.stringify(rnd.shuffle) === JSON.stringify(roundData.shuffle)
+        ) % 5,
       get isFinal() {
         return this.trickCards.length === this.shuffle.length;
       },
@@ -53,15 +52,16 @@ module.exports = (rounds = []) => ({
       get bidIsFinal() {
         // bid is final if the points have been incremented to 119
         // or the last 4 bid actions are passes
-        return this.bidPoints === 119 || this.bidActions.slice(
-          this.bidActions.length - 4,
-          this.bidActions.length
-        ).filter(ba => ba === PASS_BID).length === 4;
+        return (
+          this.bidPoints === 119 ||
+          this.bidActions
+            .slice(this.bidActions.length - 4, this.bidActions.length)
+            .filter(ba => ba === PASS_BID).length === 4
+        );
       },
       get playerHands() {
-        const ret = this.playerHandsDealt.map(cards => cards.filter(
-            cardNum => this.trickCards.indexOf(cardNum) === -1
-          )
+        const ret = this.playerHandsDealt.map(cards =>
+          cards.filter(cardNum => this.trickCards.indexOf(cardNum) === -1)
         );
         return ret;
       },
@@ -76,7 +76,11 @@ module.exports = (rounds = []) => ({
           ret.push(copy.splice(0, 5));
         }
         // initialize empty trick if conditions right
-        if (!ret[0] || (ret[ret.length - 1].length === 5 && !isNaN(this.monkeySuit))) ret.push([]);
+        if (
+          !ret[0] ||
+          (ret[ret.length - 1].length === 5 && !isNaN(this.monkeySuit))
+        )
+          ret.push([]);
         return ret;
       },
       get trick() {
@@ -152,16 +156,18 @@ module.exports = (rounds = []) => ({
 
       get bidTeamTricks() {
         return this.tricks.filter(
-          trick => [this.bidderIndex, this.partnerIndex].indexOf(
-            this.resolveTrickWinner(trick)
-          ) !== -1
+          trick =>
+            [this.bidderIndex, this.partnerIndex].indexOf(
+              this.resolveTrickWinner(trick)
+            ) !== -1
         );
       },
       get defendTeamTricks() {
         return this.tricks.filter(
-          trick => [this.bidderIndex, this.partnerIndex].indexOf(
-            this.resolveTrickWinner(trick)
-          ) === -1
+          trick =>
+            [this.bidderIndex, this.partnerIndex].indexOf(
+              this.resolveTrickWinner(trick)
+            ) === -1
         );
       },
       get bidTeamPoints() {
@@ -189,8 +195,9 @@ module.exports = (rounds = []) => ({
       },
       playerTricks(playerIndex) {
         return this.tricks.filter(
-          trick => trick.length === 5 && this.resolveTrickWinner(trick) === playerIndex
-        )
+          trick =>
+            trick.length === 5 && this.resolveTrickWinner(trick) === playerIndex
+        );
       },
       playerPointsTaken(playerIndex) {
         return getPointsForCards(flatten(this.playerTricks(playerIndex)));
@@ -198,43 +205,43 @@ module.exports = (rounds = []) => ({
       validateBidAction(bidAction) {
         const currentBidRank = this.bidRank;
         return (
-          (this.bidActions.length && bidAction === PASS_BID) ||
-          (currentBidRank === 0 && bidAction === POINT_BID) ||
-          (bidAction > -1 && bidAction < currentBidRank)
-        ) && bidAction;
+          ((this.bidActions.length && bidAction === PASS_BID) ||
+            (currentBidRank === 0 && bidAction === POINT_BID) ||
+            (bidAction > -1 && bidAction < currentBidRank)) &&
+          bidAction
+        );
       },
 
       resolveTrickWinner(trick) {
         if (isNaN(this.monkeySuit)) {
           return -1;
         }
-        const cardValues = trick.map(
-          cardNum => (
-            getSuit(cardNum) === this.monkeySuit
+        const cardValues = trick.map(cardNum =>
+          getSuit(cardNum) === this.monkeySuit
             ? 1000 + cardNum
             : getSuit(cardNum) === this.ledSuit(trick)
             ? 100 + cardNum
             : cardNum
-          )
         );
         return this.playerHandsDealt.findIndex(
-          hand => hand.indexOf(
-            trick[cardValues.indexOf(Math.max(...cardValues))]
-          ) !== -1
+          hand =>
+            hand.indexOf(trick[cardValues.indexOf(Math.max(...cardValues))]) !==
+            -1
         );
       },
       isBidTeam(playerIndex) {
-        return [this.bidderIndex, this.partnerIndex].indexOf(playerIndex) !== -1;
+        return (
+          [this.bidderIndex, this.partnerIndex].indexOf(playerIndex) !== -1
+        );
       },
       scorePlayer(playerIndex) {
         return (
-          this.isBidTeam(playerIndex) === this.bidTeamWins
-          ? 1
-          : -1
-        ) * (
-          playerIndex === this.bidderIndex
-          ? this.bidderIsPartner ? 4 : 2
-          : 1
+          (this.isBidTeam(playerIndex) === this.bidTeamWins ? 1 : -1) *
+          (playerIndex === this.bidderIndex
+            ? this.bidderIsPartner
+              ? 4
+              : 2
+            : 1)
         );
       },
       ...roundData
@@ -246,26 +253,24 @@ module.exports = (rounds = []) => ({
   },
 
   get roundScores() {
-    return this.rounds.map(
-      roundData => {
-        const round = this.loadRound(roundData);
-        return round.roundScore;
-      }
-    );
+    return this.rounds.map(roundData => {
+      const round = this.loadRound(roundData);
+      return round.roundScore;
+    });
   },
 
   get gameScore() {
-    const {roundScores} = this;
+    const { roundScores } = this;
     return range(5).map(idx =>
       range(roundScores.length).reduce(
         (sum, idx2) => sum + roundScores[idx2][idx],
         0
       )
-    )
+    );
   },
   // state changers
   pushBidAction(bidAction) {
-    const {roundData} = this;
+    const { roundData } = this;
     const round = this.loadRound(roundData);
     if (round.validateBidAction(bidAction) !== false) {
       roundData.bidActions.push(bidAction);
@@ -276,7 +281,7 @@ module.exports = (rounds = []) => ({
   },
 
   setSuit(suit) {
-    const {roundData} = this;
+    const { roundData } = this;
     if (!isNaN(roundData.monkeySuit)) {
       return false;
     }
@@ -285,12 +290,12 @@ module.exports = (rounds = []) => ({
   },
 
   pushTrickCard(trickCardNum) {
-    const {roundData} = this;
+    const { roundData } = this;
     const round = this.loadRound(roundData);
     if (round.playerHands[round.playerIndex].indexOf(trickCardNum) === -1) {
       return false;
     }
-    roundData.trickCards.push(trickCardNum)
+    roundData.trickCards.push(trickCardNum);
     return this.loadRound(roundData);
   }
 });
