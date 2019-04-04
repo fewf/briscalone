@@ -28,7 +28,7 @@ class BriscaloneApp extends React.Component {
       if (!isNaN(data)) return;
       ws.send(JSON.stringify({
         messageType: 'initialize',
-        message: this.state.user
+        message: this.state.username
       }));
       ws.onmessage = ({data}) => {
         if (!isNaN(data)) return;

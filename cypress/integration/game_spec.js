@@ -1,28 +1,40 @@
-describe('My First Test', function() {
-  let p1ws, p2ws, p3ws, p4ws, p5ws;
-  it('successfully loads player 1', function() {
-    cy.visit('/') // change URL to match your dev URL
-    cy.get('h1').should('contain', 'Waiting for more players')
+describe('Briscalone Game', function() {
+  it('initializes player 1', function() {
+    cy.visit('/')
+    cy.get('h1').should('contain', "Who are you?");
+    cy.get('input').type('Greg{enter}');
+    cy.get('h1').should('contain', 'waiting for more players')
     cy.wait(200)
   })
-  it('successfully loads', function() {
-    cy.visit('/') // change URL to match your dev URL
-    cy.get('h1').should('contain', 'Waiting for more players')
+  it('initializes player 2', function() {
+    cy.visit('/')
+    cy.get('h1').should('contain', "Who are you?");
+    cy.get('input').type('Rachael{enter}');
+    cy.get('h1').should('contain', 'waiting for more players')
     cy.wait(200)
   })
-  it('successfully loads', function() {
-    cy.visit('/') // change URL to match your dev URL
-    cy.get('h1').should('contain', 'Waiting for more players')
+  it('initializes player 3', function() {
+    cy.visit('/')
+    cy.get('h1').should('contain', "Who are you?");
+    cy.get('input').type('Emily{enter}');
+    cy.get('h1').should('contain', 'waiting for more players')
     cy.wait(200)
   })
-  it('successfully loads', function() {
-    cy.visit('/') // change URL to match your dev URL
-    cy.get('h1').should('contain', 'Waiting for more players')
+  it('initializes player 4', function() {
+    cy.visit('/')
+    cy.get('h1').should('contain', "Who are you?");
+    cy.get('input').type('Ryan{enter}');
+    cy.get('h1').should('contain', 'waiting for more players')
     cy.wait(200)
   })
-  it('successfully loads', function() {
-    cy.visit('/') // change URL to match your dev URL
+  it('initializes player 5', function() {
+
+    cy.visit('/')
+    cy.get('h1').should('contain', "Who are you?");
+    cy.get('input').type('Nathan{enter}');
     cy.wait(500);
+  });
+  it('accepts bids', function() {
     cy.request('POST', '/test/', {messageType: 'bid', message: 9});
     cy.request('POST', '/test/', {messageType: 'bid', message: 8});
     cy.request('POST', '/test/', {messageType: 'bid', message: 7});
@@ -38,6 +50,8 @@ describe('My First Test', function() {
     cy.request('POST', '/test/', {messageType: 'bid', message: 'P'});
     cy.request('POST', '/test/', {messageType: 'bid', message: 'P'});
     cy.request('POST', '/test/', {messageType: 'bid', message: 'P'});
+  });
+  it('accepts throws', function() {
     cy.request('POST', '/test/', {messageType: 'throw', message: 4});
     cy.request('POST', '/test/', {messageType: 'throw', message: 30});
     cy.request('POST', '/test/', {messageType: 'throw', message: 22});

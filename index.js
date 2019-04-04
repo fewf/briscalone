@@ -59,7 +59,7 @@ function reconnectSocket(disconnectedSocket, newSocket, username) {
   console.log('reseating player ' + username)
   newSocket.send(JSON.stringify({
     seatIndex: playerSockets.indexOf(disconnectedSocket),
-    usernames: playerSockets.map(pss => pss.username),
+    usernames: playerSockets.map(pss => pss.username)
   }));
   if (game.rounds.length) {
     broadcastGame(game);
@@ -71,13 +71,13 @@ function addPlayerSocket(ws, username) {
     websocket: ws,
     username
   }) - 1;
-  console.log(`player ${playerSockets.length} joined`);
+  console.log(`player ${username} joined`);
   ws.send(JSON.stringify({
-    seatIndex
+    seatIndex,
+    usernames: playerSockets.map(pss => pss.username)
   }));
 }
 function initializeSocket(ws, username) {
-
   const disconnectedSocket = playerSockets.find(
     ps => ps.username === username && !ps.websocket
   );
