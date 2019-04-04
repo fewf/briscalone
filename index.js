@@ -54,12 +54,11 @@ function serializeGame(game, serializeForPlayerIndex) {
   }));
 }
 
-function reconnectSocket(disconnectedSocket, newSocket, socketKey) {
+function reconnectSocket(disconnectedSocket, newSocket, username) {
   disconnectedSocket.websocket = newSocket;
-  console.log('reseating player ' + playerSockets.indexOf(disconnectedSocket))
+  console.log('reseating player ' + username)
   newSocket.send(JSON.stringify({
     seatIndex: playerSockets.indexOf(disconnectedSocket),
-    socketKey,
     usernames: playerSockets.map(pss => pss.username),
   }));
   if (game.rounds.length) {
@@ -67,26 +66,25 @@ function reconnectSocket(disconnectedSocket, newSocket, socketKey) {
   }
 }
 
-function addPlayerSocket(ws) {
+function addPlayerSocket(ws, username) {
   const seatIndex = playerSockets.push({
     websocket: ws,
-    socketKey: Math.random().toString(36).substring(6)
+    username
   }) - 1;
   console.log(`player ${playerSockets.length} joined`);
   ws.send(JSON.stringify({
-    seatIndex,
-    socketKey: playerSockets[seatIndex].socketKey
+    seatIndex
   }));
 }
-function initializeSocket(ws, socketKey) {
+function initializeSocket(ws, username) {
 
   const disconnectedSocket = playerSockets.find(
-    ps => ps.socketKey === socketKey && !ps.websocket
+    ps => ps.username === username && !ps.websocket
   );
   if (disconnectedSocket) {
-    reconnectSocket(disconnectedSocket, ws, socketKey);
+    reconnectSocket(disconnectedSocket, ws, username);
   } else if (playerSockets.length < 5) {
-    addPlayerSocket(ws)
+    addPlayerSocket(ws, username)
   }
   if (playerSockets.length === 5) {
     if (!game.rounds.length) {
@@ -167,17 +165,6 @@ function handleGamePlayMessage(message) {
   return stateChanged;
 }
 
-function setUsername(ws, username) {
-
-  const socket = playerSockets.find(ps => ps.websocket === ws);
-  socket.username = username;
-
-  playerSockets.forEach((ps, i) => ps.websocket.send(JSON.stringify({
-    usernames: playerSockets.map(pss => pss.username),
-    chatMessages
-  })));
-}
-
 function pushChatMessage(message) {
 
   chatMessages.push(message);
@@ -197,8 +184,6 @@ wss.on("connection", function(ws) {
     console.log(message);
     if (message.messageType === 'initialize') {
       initializeSocket(ws, message.message);
-    } else if (message.messageType === 'username') {
-      setUsername(ws, message.message);
     } else if (message.messageType === 'chat') {
       pushChatMessage(message.message);
     } else {
@@ -212,9 +197,9 @@ wss.on("connection", function(ws) {
   })
 });
 
-// ping client every 10 seconds so connection doesn't die
+// ping client every 30 seconds so connection doesn't die
 setInterval(() => {
   wss.clients.forEach((client) => {
     client.send(Number(new Date()));
   });
-}, 10000);
+}, 30000);

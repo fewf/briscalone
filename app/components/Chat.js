@@ -16,8 +16,29 @@ const customBubble = props => (
 );
 
 class Chat extends Component {
+
+  onMessageSubmit(e) {
+    const input = this.message;
+    e.preventDefault();
+    if (!input.value) {
+      return false;
+    }
+    this.sendMessage(input.value);
+    input.value = '';
+    return true;
+  }
+
+  sendMessage(message) {
+    const {username, ws} = this.props;
+    const messageData = {
+      username,
+      message,
+      senderName: username,
+    };
+    ws.send(JSON.stringify({messageType: 'chat', message: messageData}));
+  }
   render() {
-    const {chatMessages, seatIndex, usernames} = this.props;
+    const {chatMessages} = this.props;
     return (
       <div className="chatfeed-wrapper" style={{height: `${CHAT_HEIGHT}%`, top: `${TOP_TABLE_ROW_HEIGHT + MIDDLE_TABLE_HEIGHT + BOTTOM_TABLE_HEIGHT + ROUND_INFO_HEIGHT + GAME_SCORES_HEIGHT}%`, position: 'absolute', width: '100%'}}>
         <ChatFeed
@@ -31,7 +52,7 @@ class Chat extends Component {
             ref={m => {
               this.message = m;
             }}
-            placeholder={!usernames[seatIndex] ? "What's your name?" : "Type a message..."}
+            placeholder={"Type a message..."}
             className="message-input"
           />
         </form>

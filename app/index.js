@@ -13,31 +13,27 @@ const GameEngine = require('../game/GameEngine');
 class BriscaloneApp extends React.Component {
   constructor(props) {
     super(props);
-    const stored = window.localStorage.getItem('state');
-    if (stored) {
-      this.state = JSON.parse(stored);
-      this.state.game = GameEngine(this.state.game.rounds);
-    } else {
-      this.state = {
-        game: GameEngine(),
-        usernames: [],
-        chatMessages: []
-      };
-    }
-    this.initializeClient = this.initializeClient.bind(this);
+    this.state = {
+      game: GameEngine(),
+      username: '',
+      usernames: [],
+      chatMessages: []
+    };
   }
-  componentDidMount() {
+
+  initializeWebSocketClient() {
     const host = location.origin.replace(/^http/, 'ws')
     const ws = new WebSocket(host);
     ws.onmessage = ({data}) => {
       if (!isNaN(data)) return;
       ws.send(JSON.stringify({
         messageType: 'initialize',
-        message: window.localStorage.getItem('socketKey')
+        message: this.state.user
       }));
       ws.onmessage = ({data}) => {
         if (!isNaN(data)) return;
-        this.initializeClient(JSON.parse(data));
+        const message = JSON.parse(data);
+        this.setState({seatIndex: message.seatIndex, usernames: message.usernames || []});
         ws.onmessage = ({data}) => {
           if (!isNaN(data)) return;
           const message = JSON.parse(data);
@@ -49,55 +45,50 @@ class BriscaloneApp extends React.Component {
     }
     this.setState({ws});
   }
-
-
-  initializeClient(data) {
-    window.localStorage.setItem('socketKey', data.socketKey);
-    this.setState({seatIndex: data.seatIndex, usernames: data.usernames || []});
-  }
-
-  onMessageSubmit(e) {
-    const input = this.message;
-    e.preventDefault();
-    const {seatIndex, usernames} = this.state;
-    if (!input.value) {
-      return false;
-    }
-    if (!usernames[seatIndex]) {
-      usernames[seatIndex] = input.value;
-      this.setState({usernames});
-      this.state.ws.send(JSON.stringify({messageType: 'username', message: input.value}));
-    } else {
-      this.pushMessage(usernames[seatIndex], seatIndex, input.value);
-    }
-    input.value = '';
-    return true;
-  }
-  pushMessage(recipient, id, message) {
-    const prevState = this.state;
-    const messageData = {
-      id,
-      message,
-      senderName: recipient,
-    };
-    this.state.ws.send(JSON.stringify({messageType: 'chat', message: messageData}));
-  }
   render() {
-    const {chatMessages, game, seatIndex, usernames, ws} = this.state;
+    const {chatMessages, game, seatIndex, username, usernames, ws} = this.state;
 
-    if (!game.rounds.length) {
+    const chat = (
+      <Chat
+        chatMessages={chatMessages}
+        sendMessage={this.sendMessage}
+        username={username}
+        ws={ws}
+      />
+    )
+    if (!username) {
+      return (
+        <div>
+          <h1>Who are you?</h1>
+          <form
+            onSubmit={
+              e => {
+                e.preventDefault();
+                if (this.username.value) {
+                  this.setState(
+                    {username: this.username.value},
+                    this.initializeWebSocketClient
+                  )
+                }
+              }
+            }
+          >
+            <input
+              type='text'
+              ref={u => this.username = u}
+            />
+          </form>
+        </div>
+      );
+    } else if (!game.rounds.length) {
       return (
         <div style={{position: 'relative'}}>
-          <h1>Waiting for more players</h1>
-          <Chat
-            chatMessages={chatMessages}
-            onMessageSubmit={this.onMessageSubmit}
-            seatIndex={seatIndex}
-            usernames={usernames}
-          />
+          <h1>Hi {username}, we're waiting for more players</h1>
+          {chat}
         </div>
       );
     }
+
     const round = game.loadRound();
     return (
       <div style={{width: '100%', height: '100%', position: 'relative'}}>
@@ -128,7 +119,6 @@ class BriscaloneApp extends React.Component {
           seatIndex={seatIndex}
           bidderIndex={round.bidderIndex}
         >
-
           {
             round.bidIsFinal
             ? <Trick
@@ -158,12 +148,7 @@ class BriscaloneApp extends React.Component {
           roundScores={game.roundScores}
           usernames={usernames}
         />
-        <Chat
-          chatMessages={chatMessages}
-          onMessageSubmit={this.onMessageSubmit}
-          seatIndex={seatIndex}
-          usernames={usernames}
-        />
+        {chat}
       </div>
     );
   }
