@@ -8,7 +8,12 @@ if (isTest) {
   console.log('running server in test mode');
 }
 
-const game = require('./game/GameEngine')();
+const game = require("./game/GameEngine")();
+const testRound = require("./tests/testRound");
+
+// besides the data stored for the game engine, this is the
+// only other server-side data
+// todo: persists this in a cache
 const playerSockets = [];
 const chatMessages = [];
 
@@ -28,10 +33,10 @@ if (isTest) {
       throw new Error('not ok');
     }
   });
-  // app.post('/test/playfirst/', (req, res) => {let round = game.loadRound(); handleGamePlayMessage({messageType: 'throw', message: round.playerHands[round.playerIndex][0]}); res.send('ok')});
 }
-const wss = new WebSocketServer({server: server})
-console.log("websocket server created")
+
+const wss = new WebSocketServer({ server: server });
+console.log("websocket server created");
 
 function broadcastGame(game) {
   playerSockets.forEach((ps, i) => ps.websocket && ps.websocket.send(JSON.stringify({
@@ -88,21 +93,7 @@ function initializeSocket(ws, username) {
   }
   if (playerSockets.length === 5) {
     if (!game.rounds.length) {
-      game.initializeRound(isTest ? {
-        shuffle: [
-          // player 1 will put up some resistance
-          4, 5, 6, 16, 18, 19, 20, 21,
-          // players 2 and 3 would make a killer team
-          // but since they don't know they're
-          // just along for the ride
-          30, 31, 32, 33, 34, 26, 27, 29,
-          22, 23, 24, 25, 35, 36, 37, 38,
-          // player 4's gonna be 5's partner
-          0, 1, 10, 11, 12, 13, 14, 15,
-          // player 5's gonna win
-          2, 3, 7, 8, 9, 17, 28, 39
-        ],
-      } : {});
+      game.initializeRound(isTest ? testRound() : {});
     }
     broadcastGame(game);
   }
@@ -117,7 +108,7 @@ function handleGamePlay(ws, message) {
     return;
   }
   if (round.nextAction !== message.messageType) {
-    console.log('not next action')
+    console.log("Not next action");
     return;
   }
 
