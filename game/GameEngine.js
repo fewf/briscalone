@@ -28,6 +28,7 @@ module.exports = (rounds = []) => ({
       roundData = this.roundData;
     }
     return {
+      ...roundData,
       // this counts on the chance of two decks shuffled identically
       // being infinitessimally small.
       roundFirstPlayerIndex:
@@ -35,9 +36,38 @@ module.exports = (rounds = []) => ({
           rnd =>
             JSON.stringify(rnd.shuffle) === JSON.stringify(roundData.shuffle)
         ) % 5,
+
+      // round state getters
+      get nextAction() {
+        if (!this.bidIsFinal) {
+          return BID;
+        } else if (this.trickCards.length === 5 && isNaN(this.monkeySuit)) {
+          return MONKEY;
+        } else {
+          return THROW;
+        }
+      },
       get isFinal() {
         return this.trickCards.length === this.shuffle.length;
       },
+      get roundScore() {
+        if (!this.isFinal) {
+          return [0, 0, 0, 0, 0];
+        }
+
+        return range(5).map(playerIndex => this.scorePlayer(playerIndex));
+      },
+      get partnerCard() {
+        return this.monkeySuit * 10 + this.bidRank;
+      },
+      get bidTeamWins() {
+        if (!this.isFinal) {
+          return null;
+        }
+        return this.bidTeamPoints >= this.bidPoints;
+      },
+
+      // bid state getters
       get bidRank() {
         if (!this.bidActions.length) {
           return Number.POSITIVE_INFINITY;
@@ -59,15 +89,8 @@ module.exports = (rounds = []) => ({
             .filter(ba => ba === PASS_BID).length === 4
         );
       },
-      get playerHands() {
-        const ret = this.playerHandsDealt.map(cards =>
-          cards.filter(cardNum => this.trickCards.indexOf(cardNum) === -1)
-        );
-        return ret;
-      },
-      get playerHandsDealt() {
-        return range(5).map(i => this.shuffle.slice(i * 8, (i + 1) * 8));
-      },
+
+      // trick state getters
       get tricks() {
         const ret = [];
         if (!this.bidIsFinal) return ret;
@@ -86,6 +109,7 @@ module.exports = (rounds = []) => ({
       get trick() {
         return this.tricks.pop();
       },
+
       get previousTrick() {
         if (isNaN(this.monkeySuit)) {
           return undefined;
@@ -93,67 +117,6 @@ module.exports = (rounds = []) => ({
           return this.tricks[this.tricks.length - 2];
         }
       },
-      // index position of bidder in this.players
-
-      get bidderIndex() {
-        if (!this.bidActions.length) return null;
-        const ignoreEndPasses = dropRightWhile(
-          this.bidActions,
-          ba => ba === PASS_BID
-        );
-        return (this.roundFirstPlayerIndex + ignoreEndPasses.length - 1) % 5;
-      },
-      // index position of partner in this.players
-      get partnerIndex() {
-        if (isNaN(this.monkeySuit)) {
-          return null;
-        }
-        return this.playerHandsDealt.findIndex(
-          hand => hand.indexOf(this.partnerCard) !== -1
-        );
-      },
-
-      get playerIndex() {
-        let premodulo;
-        if (!this.bidIsFinal) {
-          premodulo = this.roundFirstPlayerIndex + this.bidActions.length;
-        } else if (this.nextAction == MONKEY) {
-          premodulo = this.bidderIndex;
-        } else {
-          premodulo = this.trickFirstPlayerIndex + this.trickCards.length;
-        }
-        return premodulo % 5;
-      },
-
-      get trickFirstPlayerIndex() {
-        if (!this.previousTrick) {
-          return this.roundFirstPlayerIndex;
-        } else {
-          return this.resolveTrickWinner(this.previousTrick);
-        }
-      },
-      get nextAction() {
-        if (!this.bidIsFinal) {
-          return BID;
-        } else if (this.trickCards.length === 5 && isNaN(this.monkeySuit)) {
-          return MONKEY;
-        } else {
-          return THROW;
-        }
-      },
-
-      get bidderIsPartner() {
-        return this.bidderIndex === this.partnerIndex;
-      },
-
-      get partnerIsRevealed() {
-        return this.trickCards.indexOf(this.partnerCard) !== -1;
-      },
-
-      get partnerCard() {
-        return this.monkeySuit * 10 + this.bidRank;
-      },
-
       get bidTeamTricks() {
         return this.tricks.filter(
           trick =>
@@ -176,42 +139,69 @@ module.exports = (rounds = []) => ({
       get defendTeamPoints() {
         return getPointsForCards(flatten(this.defendTeamTricks));
       },
-      get bidTeamWins() {
-        if (!this.isFinal) {
+
+      // player getters
+      get playerHands() {
+        const ret = this.playerHandsDealt.map(cards =>
+          cards.filter(cardNum => this.trickCards.indexOf(cardNum) === -1)
+        );
+        return ret;
+      },
+      get playerHandsDealt() {
+        return range(5).map(i => this.shuffle.slice(i * 8, (i + 1) * 8));
+      },
+      get trickFirstPlayerIndex() {
+        if (!this.previousTrick) {
+          return this.roundFirstPlayerIndex;
+        } else {
+          return this.resolveTrickWinner(this.previousTrick);
+        }
+      },
+      get partnerIndex() {
+        // index position of partner in this.players
+        if (isNaN(this.monkeySuit)) {
           return null;
         }
-        return this.bidTeamPoints >= this.bidPoints;
+        return this.playerHandsDealt.findIndex(
+          hand => hand.indexOf(this.partnerCard) !== -1
+        );
       },
-      get roundScore() {
-        if (!this.isFinal) {
-          return [0, 0, 0, 0, 0];
+
+      get playerIndex() {
+        // gives index position (0-4) of current player
+        let premodulo;
+        if (!this.bidIsFinal) {
+          premodulo = this.roundFirstPlayerIndex + this.bidActions.length;
+        } else if (this.nextAction == MONKEY) {
+          premodulo = this.bidderIndex;
+        } else {
+          premodulo = this.trickFirstPlayerIndex + this.trickCards.length;
         }
-
-        return range(5).map(playerIndex => this.scorePlayer(playerIndex));
+        return premodulo % 5;
       },
 
+      get bidderIndex() {
+        // index position of bidder
+        if (!this.bidActions.length) return null;
+        const ignoreEndPasses = dropRightWhile(
+          this.bidActions,
+          ba => ba === PASS_BID
+        );
+        return (this.roundFirstPlayerIndex + ignoreEndPasses.length - 1) % 5;
+      },
+
+      get bidderIsPartner() {
+        return this.bidderIndex === this.partnerIndex;
+      },
+
+      get partnerIsRevealed() {
+        return this.trickCards.indexOf(this.partnerCard) !== -1;
+      },
+
+      // trick-parameterized functions
       ledSuit(trick) {
         return getSuit(trick[0]);
       },
-      playerTricks(playerIndex) {
-        return this.tricks.filter(
-          trick =>
-            trick.length === 5 && this.resolveTrickWinner(trick) === playerIndex
-        );
-      },
-      playerPointsTaken(playerIndex) {
-        return getPointsForCards(flatten(this.playerTricks(playerIndex)));
-      },
-      validateBidAction(bidAction) {
-        const currentBidRank = this.bidRank;
-        return (
-          ((this.bidActions.length && bidAction === PASS_BID) ||
-            (currentBidRank === 0 && bidAction === POINT_BID) ||
-            (bidAction > -1 && bidAction < currentBidRank)) &&
-          bidAction
-        );
-      },
-
       resolveTrickWinner(trick) {
         if (isNaN(this.monkeySuit)) {
           return -1;
@@ -229,6 +219,16 @@ module.exports = (rounds = []) => ({
             -1
         );
       },
+      //  player-parameterized functions
+      playerTricks(playerIndex) {
+        return this.tricks.filter(
+          trick =>
+            trick.length === 5 && this.resolveTrickWinner(trick) === playerIndex
+        );
+      },
+      playerPointsTaken(playerIndex) {
+        return getPointsForCards(flatten(this.playerTricks(playerIndex)));
+      },
       isBidTeam(playerIndex) {
         return (
           [this.bidderIndex, this.partnerIndex].indexOf(playerIndex) !== -1
@@ -244,7 +244,16 @@ module.exports = (rounds = []) => ({
             : 1)
         );
       },
-      ...roundData
+      // bid parameterized functions
+      validateBidAction(bidAction) {
+        const currentBidRank = this.bidRank;
+        return (
+          ((this.bidActions.length && bidAction === PASS_BID) ||
+            (currentBidRank === 0 && bidAction === POINT_BID) ||
+            (bidAction > -1 && bidAction < currentBidRank)) &&
+          bidAction
+        );
+      }
     };
   },
 
@@ -268,7 +277,7 @@ module.exports = (rounds = []) => ({
       )
     );
   },
-  // state changers
+  // state changers -- game state should only be mutated with these.
   pushBidAction(bidAction) {
     const { roundData } = this;
     const round = this.loadRound(roundData);
