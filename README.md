@@ -1,3 +1,28 @@
+To run:
+```
+npm install
+npm run build
+npm start
+```
+
+_open browser and load 5 tabs at localhost:5000_
+
+To run Cypress tests:
+```
+npm install
+npm run build
+node index.js --test
+npm run cypress:open
+```
+
+_use cypress gui to run tests_
+
+To run unit tests:
+```
+npm install
+node tests/testGameEngine.js
+```
+
 _Note: because reasons, the word "trump"--as in "trump suit"--will not be used. The word "monkey" will be used instead._
 
 - [The Game Engine](#the-game-engine)
