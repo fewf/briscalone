@@ -7,7 +7,8 @@
     "test": "node game/testGameEngine.js",
     "test-server": "node index.js --test",
     "cypress:open": "cypress open",
-    "build": "webpack --watch",
+    "build-watch": "webpack --watch",
+    "build": "webpack",
     "start": "node index.js",
     "heroku-postbuild": "webpack -p"
   },

@@ -1,23 +1,22 @@
-To run:
+#### To run:
 ```
 npm install
 npm run build
 npm start
 ```
-
 _open browser and load 5 tabs at localhost:5000_
 
-To run Cypress tests:
+#### To run Cypress tests:
 ```
 npm install
 npm run build
 node index.js --test
+# in new terminal:
 npm run cypress:open
 ```
-
 _use cypress gui to run tests_
 
-To run unit tests:
+#### To run unit tests:
 ```
 npm install
 node tests/testGameEngine.js
