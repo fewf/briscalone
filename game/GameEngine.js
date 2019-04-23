@@ -28,7 +28,6 @@ module.exports = (rounds = []) => ({
       roundData = this.roundData;
     }
     return {
-      ...roundData,
       // this counts on the chance of two decks shuffled identically
       // being infinitessimally small.
       roundFirstPlayerIndex:
@@ -253,7 +252,8 @@ module.exports = (rounds = []) => ({
             (bidAction > -1 && bidAction < currentBidRank)) &&
           bidAction
         );
-      }
+      },
+      ...roundData
     };
   },
 
